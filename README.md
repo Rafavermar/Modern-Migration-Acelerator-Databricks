@@ -103,7 +103,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\local_smoke_test.ps1
 
 This validates Python syntax, unit tests and sample metadata parsing without calling Databricks.
 
-When the Full Trial exists, follow `docs/FIRST_RUN_RUNBOOK.md`. It includes the preflight checks, bundle validation, deployment order and first-run acceptance criteria.
+When the Full Trial exists, follow `docs/02_FIRST_RUN_RUNBOOK.md`. It includes the preflight checks, bundle validation, deployment order and first-run acceptance criteria.
 
 The local sample estate now includes:
 
@@ -115,11 +115,11 @@ The local sample estate now includes:
 - Synapse notebook sample.
 - SQL scripts and dependencies.
 
-For real customer implementations, use `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md` as the operating model. The customer exports metadata into a governed landing area; the accelerator consumes those exports and generates the dependency graph, risk register and target blueprint.
+For real customer implementations, use `docs/01_CUSTOMER_IMPLEMENTATION.md` as the operating model. The customer exports metadata into a governed landing area; the accelerator consumes those exports and generates the dependency graph, risk register and target blueprint.
 
-Use `docs/PRODUCT_POSITIONING.md` to decide when this accelerator is appropriate, when existing tools are better, and how to choose between federation, ingestion, external tables and volumes.
+Use `docs/00_PRODUCT_POSITIONING.md` to decide when this accelerator is appropriate, when existing tools are better, and how to choose between federation, ingestion, external tables and volumes.
 
-The lightweight metadata taxonomy is documented in `docs/METADATA_FRAMEWORK.md` and represented by `contracts/metadata_taxonomy.json`.
+The lightweight metadata taxonomy is documented in `docs/03_METADATA_FRAMEWORK.md` and represented by `contracts/metadata_taxonomy.json`.
 
 ## Local SQL Server fixture
 
@@ -155,7 +155,7 @@ The export goes to:
 local_outputs/legacy_metadata/sqlserver_inventory.csv
 ```
 
-More detail is in `docs/LOCAL_SQLSERVER_FIXTURE.md`.
+More detail is in `docs/04_LOCAL_SQLSERVER_FIXTURE.md`.
 
 The SQL Server container is a developer fixture. In a real customer implementation, SQL Server metadata should usually be exported with approved read-only catalog queries and delivered to the metadata landing area.
 
@@ -213,7 +213,7 @@ Provide Neo4j details only when we add the optional external graph extension aft
 
 For now, the dependency graph is stored in `silver.dependencies` and consumed by `gold.risk_register`.
 
-The Neo4j extension plan is documented in `docs/PHASE_2_NEO4J_GRAPH.md`.
+The Neo4j extension plan is documented in `docs/05_ADVANCED_CAPABILITIES.md`.
 
 ## Manual Databricks commands
 
@@ -258,18 +258,16 @@ Optional future files:
 
 Do not create those files unless explicitly requested.
 
-## Phase 2 roadmap
+## Documentation
 
-Documented future extensions:
+Read these in order:
 
-- `docs/FIRST_RUN_RUNBOOK.md`
+- `docs/00_PRODUCT_POSITIONING.md`
+- `docs/01_CUSTOMER_IMPLEMENTATION.md`
+- `docs/02_FIRST_RUN_RUNBOOK.md`
 - `contracts/customer_intake_checklist.md`
-- `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md`
-- `docs/METADATA_FRAMEWORK.md`
-- `docs/PRODUCT_POSITIONING.md`
-- `docs/ADVANCED_CAPABILITIES_ROADMAP.md`
-- `docs/PHASE_2_VECTOR_SEARCH.md`
-- `docs/PHASE_2_MLFLOW_OBSERVABILITY.md`
-- `docs/PHASE_2_NEO4J_GRAPH.md`
+- `docs/03_METADATA_FRAMEWORK.md`
+- `docs/04_LOCAL_SQLSERVER_FIXTURE.md`
+- `docs/05_ADVANCED_CAPABILITIES.md`
 
 Vector Search, embeddings, RAG, MLflow tracking, GenAI tracing and model or agent evaluation should be added only after the deterministic migration analysis MVP is working in Databricks.

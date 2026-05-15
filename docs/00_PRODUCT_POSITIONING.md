@@ -123,7 +123,7 @@ For most modernization programs, use this order:
 6. Integrate with Purview or another catalog if enterprise governance requires it.
 7. Add Vector Search, RAG, MLflow or Model Serving only after deterministic outputs are trusted.
 
-## Advanced Capabilities Positioning
+## Advanced Capabilities
 
 Vector Search and MLflow can make the product stronger, but they should not be used to justify the MVP.
 
