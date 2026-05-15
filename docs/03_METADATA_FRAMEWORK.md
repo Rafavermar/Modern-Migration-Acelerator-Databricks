@@ -11,6 +11,15 @@ The accelerator normalizes all discovered artifacts into two graph-ready tables:
 
 Assets describe things. Dependencies describe relationships between things.
 
+Human-facing gold outputs are derived from those tables:
+
+- `gold.assessment_summary`
+- `gold.asset_priority_matrix`
+- `gold.graph_edges`
+- `gold.risk_register`
+- `gold.target_databricks_blueprint`
+- `gold.data_quality_plan`
+
 The initial taxonomy is stored in:
 
 ```text

@@ -1263,6 +1263,150 @@ def build_data_quality_plan(
     return rows
 
 
+def build_graph_edges(
+    assets: list[dict[str, Any]],
+    dependencies: list[dict[str, Any]],
+    run_id: str,
+) -> list[dict[str, Any]]:
+    generated_at = utc_now()
+    asset_by_id = {asset["asset_id"]: asset for asset in assets}
+    rows = []
+
+    for dependency in dependencies:
+        from_asset = asset_by_id.get(dependency["from_asset_id"], {})
+        to_asset = asset_by_id.get(dependency["to_asset_id"], {})
+        rows.append(
+            {
+                "run_id": run_id,
+                "from_asset_id": dependency["from_asset_id"],
+                "from_asset_name": from_asset.get("asset_name", dependency["from_asset_id"]),
+                "from_asset_type": from_asset.get("asset_type", "unknown"),
+                "dependency_type": dependency["dependency_type"],
+                "to_asset_id": dependency["to_asset_id"],
+                "to_asset_name": to_asset.get("asset_name", dependency["to_asset_id"]),
+                "to_asset_type": to_asset.get("asset_type", "unknown"),
+                "evidence": dependency.get("evidence"),
+                "confidence": dependency["confidence"],
+                "generated_at": generated_at,
+            }
+        )
+    return rows
+
+
+def build_asset_priority_matrix(
+    assets: list[dict[str, Any]],
+    dependencies: list[dict[str, Any]],
+    risk_register: list[dict[str, Any]],
+    blueprint: list[dict[str, Any]],
+    dq_plan: list[dict[str, Any]],
+    run_id: str,
+) -> list[dict[str, Any]]:
+    generated_at = utc_now()
+    dependency_counts = Counter()
+    for dependency in dependencies:
+        dependency_counts[dependency["from_asset_id"]] += 1
+        dependency_counts[dependency["to_asset_id"]] += 1
+
+    risk_by_id = {risk["asset_id"]: risk for risk in risk_register}
+    blueprint_by_id = {item["asset_id"]: item for item in blueprint}
+    dq_counts = Counter(item["asset_id"] for item in dq_plan)
+    rows = []
+
+    for asset in assets:
+        risk = risk_by_id.get(asset["asset_id"], {})
+        blueprint_item = blueprint_by_id.get(asset["asset_id"], {})
+        risk_score = float(risk.get("risk_score") or 0)
+        dependency_count = dependency_counts[asset["asset_id"]]
+
+        if risk_score >= 70 or dependency_count >= 5:
+            review_priority = "p1"
+        elif risk_score >= 40 or dependency_count >= 2:
+            review_priority = "p2"
+        else:
+            review_priority = "p3"
+
+        rows.append(
+            {
+                "run_id": run_id,
+                "asset_id": asset["asset_id"],
+                "asset_name": asset["asset_name"],
+                "asset_type": asset["asset_type"],
+                "source_system": asset["source_system"],
+                "risk_level": risk.get("risk_level", "unknown"),
+                "risk_score": risk_score,
+                "dependency_count": dependency_count,
+                "dq_check_count": dq_counts[asset["asset_id"]],
+                "target_pattern": blueprint_item.get("target_pattern", "unknown"),
+                "target_schema": blueprint_item.get("target_schema", "unknown"),
+                "review_priority": review_priority,
+                "next_action": risk.get("recommended_action", "Review asset metadata and target mapping."),
+                "generated_at": generated_at,
+            }
+        )
+
+    return sorted(
+        rows,
+        key=lambda item: (
+            {"p1": 0, "p2": 1, "p3": 2}.get(item["review_priority"], 9),
+            -item["risk_score"],
+            -item["dependency_count"],
+            item["asset_name"],
+        ),
+    )
+
+
+def build_assessment_summary(
+    assets: list[dict[str, Any]],
+    dependencies: list[dict[str, Any]],
+    risk_register: list[dict[str, Any]],
+    blueprint: list[dict[str, Any]],
+    dq_plan: list[dict[str, Any]],
+    run_id: str,
+) -> list[dict[str, Any]]:
+    generated_at = utc_now()
+    risk_counts = Counter(row["risk_level"] for row in risk_register)
+    source_counts = Counter(asset["source_system"] for asset in assets)
+    pattern_counts = Counter(row["target_pattern"] for row in blueprint)
+    dq_severity_counts = Counter(row["severity"] for row in dq_plan)
+    priority_candidates = sum(
+        1
+        for row in risk_register
+        if row["risk_level"] == "high"
+    )
+
+    return [
+        {
+            "run_id": run_id,
+            "summary_name": "executive_summary",
+            "asset_count": len(assets),
+            "dependency_count": len(dependencies),
+            "high_risk_count": risk_counts["high"],
+            "medium_risk_count": risk_counts["medium"],
+            "low_risk_count": risk_counts["low"],
+            "dq_error_count": dq_severity_counts["error"],
+            "dq_warning_count": dq_severity_counts["warning"],
+            "primary_source_systems": sorted(source_counts),
+            "target_patterns": sorted(pattern_counts),
+            "recommended_focus": recommended_focus(
+                risk_counts["high"],
+                priority_candidates,
+                len(dependencies),
+            ),
+            "generated_at": generated_at,
+        }
+    ]
+
+
+def recommended_focus(high_risk_count: int, priority_candidates: int, dependency_count: int) -> str:
+    if high_risk_count > 0:
+        return "Review high-risk assets and validate critical dependencies first."
+    if dependency_count > 0:
+        return "Validate dependency coverage and target patterns with source owners."
+    if priority_candidates > 0:
+        return "Review priority candidates and confirm business criticality."
+    return "Confirm inventory completeness before planning migration waves."
+
+
 def schemas():
     from pyspark.sql.types import (
         ArrayType,
@@ -1353,6 +1497,56 @@ def schemas():
                 StructField("generated_at", StringType(), False),
             ]
         ),
+        "graph_edges": StructType(
+            [
+                StructField("run_id", StringType(), False),
+                StructField("from_asset_id", StringType(), False),
+                StructField("from_asset_name", StringType(), False),
+                StructField("from_asset_type", StringType(), False),
+                StructField("dependency_type", StringType(), False),
+                StructField("to_asset_id", StringType(), False),
+                StructField("to_asset_name", StringType(), False),
+                StructField("to_asset_type", StringType(), False),
+                StructField("evidence", StringType(), True),
+                StructField("confidence", DoubleType(), False),
+                StructField("generated_at", StringType(), False),
+            ]
+        ),
+        "asset_priority_matrix": StructType(
+            [
+                StructField("run_id", StringType(), False),
+                StructField("asset_id", StringType(), False),
+                StructField("asset_name", StringType(), False),
+                StructField("asset_type", StringType(), False),
+                StructField("source_system", StringType(), False),
+                StructField("risk_level", StringType(), False),
+                StructField("risk_score", DoubleType(), False),
+                StructField("dependency_count", LongType(), False),
+                StructField("dq_check_count", LongType(), False),
+                StructField("target_pattern", StringType(), False),
+                StructField("target_schema", StringType(), False),
+                StructField("review_priority", StringType(), False),
+                StructField("next_action", StringType(), False),
+                StructField("generated_at", StringType(), False),
+            ]
+        ),
+        "assessment_summary": StructType(
+            [
+                StructField("run_id", StringType(), False),
+                StructField("summary_name", StringType(), False),
+                StructField("asset_count", LongType(), False),
+                StructField("dependency_count", LongType(), False),
+                StructField("high_risk_count", LongType(), False),
+                StructField("medium_risk_count", LongType(), False),
+                StructField("low_risk_count", LongType(), False),
+                StructField("dq_error_count", LongType(), False),
+                StructField("dq_warning_count", LongType(), False),
+                StructField("primary_source_systems", ArrayType(StringType()), False),
+                StructField("target_patterns", ArrayType(StringType()), False),
+                StructField("recommended_focus", StringType(), False),
+                StructField("generated_at", StringType(), False),
+            ]
+        ),
         "metadata_snapshots": StructType(
             [
                 StructField("run_id", StringType(), False),
@@ -1440,6 +1634,23 @@ def main() -> None:
         risk_register = build_risk_register(assets, dependencies, run_id)
         blueprint = build_blueprint(assets, run_id, args.catalog)
         dq_plan = build_data_quality_plan(assets, run_id, args.catalog)
+        graph_edges = build_graph_edges(assets, dependencies, run_id)
+        priority_matrix = build_asset_priority_matrix(
+            assets,
+            dependencies,
+            risk_register,
+            blueprint,
+            dq_plan,
+            run_id,
+        )
+        assessment_summary = build_assessment_summary(
+            assets,
+            dependencies,
+            risk_register,
+            blueprint,
+            dq_plan,
+            run_id,
+        )
         high_risk_count = sum(1 for row in risk_register if row["risk_level"] == "high")
         snapshot = [
             {
@@ -1497,6 +1708,27 @@ def main() -> None:
         )
         write_table(
             spark,
+            graph_edges,
+            table_schemas["graph_edges"],
+            table_name(args.catalog, args.gold_schema, "graph_edges"),
+            "overwrite",
+        )
+        write_table(
+            spark,
+            priority_matrix,
+            table_schemas["asset_priority_matrix"],
+            table_name(args.catalog, args.gold_schema, "asset_priority_matrix"),
+            "overwrite",
+        )
+        write_table(
+            spark,
+            assessment_summary,
+            table_schemas["assessment_summary"],
+            table_name(args.catalog, args.gold_schema, "assessment_summary"),
+            "overwrite",
+        )
+        write_table(
+            spark,
             snapshot,
             table_schemas["metadata_snapshots"],
             table_name(args.catalog, args.control_schema, "metadata_snapshots"),
@@ -1510,6 +1742,8 @@ def main() -> None:
             "risk_register_rows": len(risk_register),
             "blueprint_rows": len(blueprint),
             "data_quality_plan_rows": len(dq_plan),
+            "graph_edges": len(graph_edges),
+            "asset_priority_rows": len(priority_matrix),
             "high_risk_count": high_risk_count,
         }
         status = "SUCCESS"

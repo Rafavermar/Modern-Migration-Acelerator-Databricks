@@ -10,7 +10,7 @@ The customer does not copy this repository into every legacy system. The impleme
 2. Create a governed metadata landing area in Unity Catalog.
 3. Ask the customer to export legacy metadata into that landing area.
 4. Run the accelerator jobs.
-5. Review the generated risk register, dependency graph, target blueprint and data quality plan.
+5. Review the generated summary, priority matrix, dependency graph, risk register, target blueprint and data quality plan.
 6. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
 
 The MVP focuses on steps 1 to 5. Step 6 is where implementation choices become customer-specific.
@@ -61,6 +61,30 @@ The current MVP parser supports these file families:
 - SQL scripts, views, procedures and external table DDL as `.sql`.
 
 Future phases can add richer source-specific extractors, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
+
+## How to read MVP results
+
+Neo4j and Vector Search are optional because the MVP is consumed directly in Databricks.
+
+Use these Delta tables first:
+
+- `gold.assessment_summary`: one-row executive view of the run.
+- `gold.asset_priority_matrix`: prioritized review backlog for migration analysts.
+- `gold.graph_edges`: readable dependency relationships for impact analysis.
+- `gold.risk_register`: risk scores, factors and recommended actions.
+- `gold.target_databricks_blueprint`: proposed Databricks target patterns.
+- `gold.data_quality_plan`: validation checks to execute during migration.
+
+Interpretation flow:
+
+1. Start with `gold.assessment_summary`.
+2. Open `gold.asset_priority_matrix` and filter `review_priority = 'p1'`.
+3. For a priority asset, inspect related rows in `gold.graph_edges`.
+4. Confirm risk detail in `gold.risk_register`.
+5. Confirm target pattern in `gold.target_databricks_blueprint`.
+6. Use `gold.data_quality_plan` as the validation backlog.
+
+Neo4j later makes graph exploration more visual. Vector Search later makes discovery semantic. Neither is required to interpret the MVP outputs.
 
 ## What the customer provides
 
