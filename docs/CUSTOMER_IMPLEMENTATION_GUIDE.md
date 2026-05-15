@@ -19,6 +19,8 @@ Before positioning the accelerator, review `docs/PRODUCT_POSITIONING.md`. It def
 
 For the first real Databricks execution, follow `docs/FIRST_RUN_RUNBOOK.md`. For customer discovery, use `contracts/customer_intake_checklist.md`.
 
+For Vector Search, RAG, MLflow, Model Serving and Neo4j planning, use `docs/ADVANCED_CAPABILITIES_ROADMAP.md`. These are staged extensions, not first-run requirements.
+
 ## Metadata landing contract
 
 Recommended landing location:
