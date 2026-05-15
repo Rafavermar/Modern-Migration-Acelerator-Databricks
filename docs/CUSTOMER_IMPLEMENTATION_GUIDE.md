@@ -17,6 +17,8 @@ The MVP focuses on steps 1 to 5. Step 6 is where implementation choices become c
 
 Before positioning the accelerator, review `docs/PRODUCT_POSITIONING.md`. It defines where this product fits, when existing tools are better and how to decide between federation, ingestion, external tables and volumes.
 
+For the first real Databricks execution, follow `docs/FIRST_RUN_RUNBOOK.md`. For customer discovery, use `contracts/customer_intake_checklist.md`.
+
 ## Metadata landing contract
 
 Recommended landing location:
