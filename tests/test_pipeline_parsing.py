@@ -64,6 +64,81 @@ class PipelineParsingTests(unittest.TestCase):
         self.assertIn("legacy_lake.ext.externalcustomers", asset_names)
         self.assertEqual(len(dependencies), 1)
 
+    def test_parses_adf_dataset_linked_service_and_redacts_secret_metadata(self) -> None:
+        dataset = TextDocument(
+            path="ds_orders.json",
+            extension=".json",
+            content=json.dumps(
+                {
+                    "name": "ds_orders",
+                    "type": "Microsoft.DataFactory/factories/datasets",
+                    "properties": {
+                        "type": "AzureSqlDWTable",
+                        "linkedServiceName": {"referenceName": "ls_synapse"},
+                        "typeProperties": {"schema": "dbo", "table": "CustomerOrders"},
+                    },
+                }
+            ),
+        )
+        linked_service = TextDocument(
+            path="ls_synapse.json",
+            extension=".json",
+            content=json.dumps(
+                {
+                    "name": "ls_synapse",
+                    "type": "Microsoft.DataFactory/factories/linkedservices",
+                    "properties": {
+                        "type": "AzureSqlDW",
+                        "typeProperties": {
+                            "connectionString": "Server=x;User ID=y;Password=plain-text;"
+                        },
+                    },
+                }
+            ),
+        )
+
+        _, assets, dependencies = parse_documents([dataset, linked_service], "test_run")
+        asset_types = {asset["asset_type"] for asset in assets}
+        dependency_types = {dependency["dependency_type"] for dependency in dependencies}
+        linked_service_asset = next(asset for asset in assets if asset["asset_type"] == "adf_linked_service")
+
+        self.assertIn("adf_dataset", asset_types)
+        self.assertIn("adf_linked_service", asset_types)
+        self.assertIn("adf_data_object", asset_types)
+        self.assertIn("uses_connection", dependency_types)
+        self.assertIn("points_to", dependency_types)
+        self.assertNotIn("plain-text", linked_service_asset["metadata_json"])
+        self.assertIn("***REDACTED***", linked_service_asset["metadata_json"])
+
+    def test_parses_adf_trigger_pipeline_relationship(self) -> None:
+        trigger = TextDocument(
+            path="trigger.json",
+            extension=".json",
+            content=json.dumps(
+                {
+                    "name": "tr_daily",
+                    "type": "Microsoft.DataFactory/factories/triggers",
+                    "properties": {
+                        "type": "ScheduleTrigger",
+                        "runtimeState": "Started",
+                        "pipelines": [
+                            {
+                                "pipelineReference": {
+                                    "referenceName": "pl_ingest_customer_orders",
+                                    "type": "PipelineReference",
+                                }
+                            }
+                        ],
+                    },
+                }
+            ),
+        )
+
+        _, assets, dependencies = parse_documents([trigger], "test_run")
+
+        self.assertIn("adf_trigger", {asset["asset_type"] for asset in assets})
+        self.assertEqual(dependencies[0]["dependency_type"], "triggers")
+
 
 if __name__ == "__main__":
     unittest.main()

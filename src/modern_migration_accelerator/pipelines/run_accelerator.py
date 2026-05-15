@@ -33,6 +33,28 @@ def content_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+SENSITIVE_KEY_TERMS = ("password", "secret", "token", "key", "connectionstring", "sas")
+
+
+def sanitized_json(value: Any) -> str:
+    return json.dumps(redact_sensitive_values(value), sort_keys=True)
+
+
+def redact_sensitive_values(value: Any) -> Any:
+    if isinstance(value, dict):
+        redacted = {}
+        for key, nested_value in value.items():
+            normalized_key = str(key).replace("_", "").lower()
+            if any(term in normalized_key for term in SENSITIVE_KEY_TERMS):
+                redacted[key] = "***REDACTED***"
+            else:
+                redacted[key] = redact_sensitive_values(nested_value)
+        return redacted
+    if isinstance(value, list):
+        return [redact_sensitive_values(item) for item in value]
+    return value
+
+
 def quote_identifier(identifier: str) -> str:
     if not identifier or "\x00" in identifier:
         raise ValueError("Databricks identifiers cannot be empty.")
@@ -88,6 +110,314 @@ def add_dependency(
     dependencies.append(row)
 
 
+def adf_resource_name(resource: dict[str, Any], fallback_path: str) -> str:
+    name = resource.get("name") or Path(fallback_path).stem
+    return str(name).split("/")[-1]
+
+
+def adf_resource_kind(resource: dict[str, Any]) -> str:
+    resource_type = str(resource.get("type") or "").lower()
+    properties = resource.get("properties", {})
+    if resource_type.endswith("/pipelines") or "activities" in properties:
+        return "pipeline"
+    if resource_type.endswith("/datasets") or "linkedServiceName" in properties:
+        return "dataset"
+    if resource_type.endswith("/linkedservices") or (
+        "typeProperties" in properties and "connectVia" in properties
+    ):
+        return "linked_service"
+    if resource_type.endswith("/triggers") or ("pipelines" in properties and "runtimeState" in properties):
+        return "trigger"
+    if "typeProperties" in properties and "type" in properties:
+        return "linked_service"
+    return "pipeline"
+
+
+def parse_reference_name(reference: Any) -> str | None:
+    if isinstance(reference, dict):
+        return reference.get("referenceName") or reference.get("name")
+    if isinstance(reference, str):
+        return reference
+    return None
+
+
+def add_adf_linked_service_asset(
+    name: str,
+    document: TextDocument,
+    run_id: str,
+    discovered_at: str,
+    assets: dict[str, dict[str, Any]],
+    properties: dict[str, Any] | None = None,
+) -> str:
+    linked_service_id = stable_id("azure_data_factory", "linked_service", name)
+    properties = properties or {}
+    linked_service_type = properties.get("type") or "LinkedService"
+    add_asset(
+        assets,
+        {
+            "run_id": run_id,
+            "asset_id": linked_service_id,
+            "source_system": "azure_data_factory",
+            "asset_type": "adf_linked_service",
+            "asset_name": name,
+            "platform": "Azure",
+            "technology": f"ADF LinkedService {linked_service_type}",
+            "raw_path": document.path,
+            "owner": None,
+            "criticality": None,
+            "row_count": None,
+            "metadata_json": sanitized_json(properties),
+            "discovered_at": discovered_at,
+        },
+    )
+    return linked_service_id
+
+
+def add_adf_dataset_physical_reference(
+    dataset_id: str,
+    dataset_name: str,
+    properties: dict[str, Any],
+    document: TextDocument,
+    run_id: str,
+    discovered_at: str,
+    assets: dict[str, dict[str, Any]],
+    dependencies: list[dict[str, Any]],
+    dependency_keys: set[tuple[str, str, str]],
+) -> None:
+    type_properties = properties.get("typeProperties", {})
+    schema_name = type_properties.get("schema") or type_properties.get("schemaName")
+    table_name = type_properties.get("table") or type_properties.get("tableName")
+    if table_name:
+        object_name = f"{schema_name}.{table_name}" if schema_name else str(table_name)
+        object_id = stable_id("azure_data_factory", "data_object", object_name)
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": object_id,
+                "source_system": "azure_data_factory",
+                "asset_type": "adf_data_object",
+                "asset_name": object_name,
+                "platform": "Azure",
+                "technology": "ADF dataset table reference",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": None,
+                "row_count": None,
+                "metadata_json": sanitized_json({"dataset": dataset_name, "typeProperties": type_properties}),
+                "discovered_at": discovered_at,
+            },
+        )
+        add_dependency(
+            dependencies,
+            dependency_keys,
+            {
+                "run_id": run_id,
+                "from_asset_id": dataset_id,
+                "to_asset_id": object_id,
+                "dependency_type": "points_to",
+                "evidence": f"ADF dataset table reference: {object_name}",
+                "confidence": 0.85,
+                "discovered_at": discovered_at,
+            },
+        )
+
+    location = type_properties.get("location") or {}
+    folder_path = location.get("folderPath") or type_properties.get("folderPath")
+    file_name = location.get("fileName") or type_properties.get("fileName")
+    if folder_path or file_name:
+        path_name = "/".join(part.strip("/") for part in (str(folder_path or ""), str(file_name or "")) if part)
+        path_id = stable_id("azure_data_factory", "storage_path", path_name)
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": path_id,
+                "source_system": "azure_data_factory",
+                "asset_type": "adf_storage_path",
+                "asset_name": path_name,
+                "platform": "Azure",
+                "technology": "ADF dataset storage path",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": None,
+                "row_count": None,
+                "metadata_json": sanitized_json({"dataset": dataset_name, "location": location}),
+                "discovered_at": discovered_at,
+            },
+        )
+        add_dependency(
+            dependencies,
+            dependency_keys,
+            {
+                "run_id": run_id,
+                "from_asset_id": dataset_id,
+                "to_asset_id": path_id,
+                "dependency_type": "points_to",
+                "evidence": f"ADF dataset storage path: {path_name}",
+                "confidence": 0.8,
+                "discovered_at": discovered_at,
+            },
+        )
+
+
+def parse_adf_dataset_resource(
+    resource: dict[str, Any],
+    document: TextDocument,
+    run_id: str,
+    discovered_at: str,
+    assets: dict[str, dict[str, Any]],
+    dependencies: list[dict[str, Any]],
+    dependency_keys: set[tuple[str, str, str]],
+) -> str:
+    properties = resource.get("properties", {})
+    dataset_name = adf_resource_name(resource, document.path)
+    dataset_id = stable_id("azure_data_factory", "dataset", dataset_name)
+    dataset_type = properties.get("type") or resource.get("type") or "Dataset"
+    add_asset(
+        assets,
+        {
+            "run_id": run_id,
+            "asset_id": dataset_id,
+            "source_system": "azure_data_factory",
+            "asset_type": "adf_dataset",
+            "asset_name": dataset_name,
+            "platform": "Azure",
+            "technology": f"ADF Dataset {dataset_type}",
+            "raw_path": document.path,
+            "owner": None,
+            "criticality": None,
+            "row_count": None,
+            "metadata_json": sanitized_json(properties),
+            "discovered_at": discovered_at,
+        },
+    )
+
+    linked_service_name = parse_reference_name(properties.get("linkedServiceName"))
+    if linked_service_name:
+        linked_service_id = add_adf_linked_service_asset(
+            linked_service_name,
+            document,
+            run_id,
+            discovered_at,
+            assets,
+        )
+        add_dependency(
+            dependencies,
+            dependency_keys,
+            {
+                "run_id": run_id,
+                "from_asset_id": dataset_id,
+                "to_asset_id": linked_service_id,
+                "dependency_type": "uses_connection",
+                "evidence": f"ADF dataset linked service: {linked_service_name}",
+                "confidence": 0.9,
+                "discovered_at": discovered_at,
+            },
+        )
+
+    add_adf_dataset_physical_reference(
+        dataset_id,
+        dataset_name,
+        properties,
+        document,
+        run_id,
+        discovered_at,
+        assets,
+        dependencies,
+        dependency_keys,
+    )
+    return dataset_id
+
+
+def parse_adf_linked_service_resource(
+    resource: dict[str, Any],
+    document: TextDocument,
+    run_id: str,
+    discovered_at: str,
+    assets: dict[str, dict[str, Any]],
+) -> str:
+    return add_adf_linked_service_asset(
+        adf_resource_name(resource, document.path),
+        document,
+        run_id,
+        discovered_at,
+        assets,
+        resource.get("properties", {}),
+    )
+
+
+def parse_adf_trigger_resource(
+    resource: dict[str, Any],
+    document: TextDocument,
+    run_id: str,
+    discovered_at: str,
+    assets: dict[str, dict[str, Any]],
+    dependencies: list[dict[str, Any]],
+    dependency_keys: set[tuple[str, str, str]],
+) -> str:
+    properties = resource.get("properties", {})
+    trigger_name = adf_resource_name(resource, document.path)
+    trigger_id = stable_id("azure_data_factory", "trigger", trigger_name)
+    trigger_type = properties.get("type") or "Trigger"
+    add_asset(
+        assets,
+        {
+            "run_id": run_id,
+            "asset_id": trigger_id,
+            "source_system": "azure_data_factory",
+            "asset_type": "adf_trigger",
+            "asset_name": trigger_name,
+            "platform": "Azure",
+            "technology": f"ADF Trigger {trigger_type}",
+            "raw_path": document.path,
+            "owner": None,
+            "criticality": None,
+            "row_count": None,
+            "metadata_json": sanitized_json(properties),
+            "discovered_at": discovered_at,
+        },
+    )
+
+    for pipeline_reference in properties.get("pipelines", []) or []:
+        pipeline_name = parse_reference_name(pipeline_reference.get("pipelineReference"))
+        if not pipeline_name:
+            continue
+        pipeline_id = stable_id("azure_data_factory", "pipeline", pipeline_name)
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": pipeline_id,
+                "source_system": "azure_data_factory",
+                "asset_type": "adf_pipeline",
+                "asset_name": pipeline_name,
+                "platform": "Azure",
+                "technology": "Azure Data Factory",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": None,
+                "row_count": None,
+                "metadata_json": sanitized_json({"referenced_by_trigger": trigger_name}),
+                "discovered_at": discovered_at,
+            },
+        )
+        add_dependency(
+            dependencies,
+            dependency_keys,
+            {
+                "run_id": run_id,
+                "from_asset_id": trigger_id,
+                "to_asset_id": pipeline_id,
+                "dependency_type": "triggers",
+                "evidence": f"ADF trigger pipeline reference: {pipeline_name}",
+                "confidence": 0.95,
+                "discovered_at": discovered_at,
+            },
+        )
+    return trigger_id
+
+
 def parse_adf_document(
     document: TextDocument,
     run_id: str,
@@ -97,14 +427,44 @@ def parse_adf_document(
     dependency_keys: set[tuple[str, str, str]],
 ) -> None:
     payload = json.loads(document.content)
-    pipelines = payload if isinstance(payload, list) else [payload]
+    if isinstance(payload, dict) and isinstance(payload.get("resources"), list):
+        resources = payload["resources"]
+    else:
+        resources = payload if isinstance(payload, list) else [payload]
 
-    for pipeline in pipelines:
+    for pipeline in resources:
         if not isinstance(pipeline, dict):
             continue
+        kind = adf_resource_kind(pipeline)
+        if kind == "dataset":
+            parse_adf_dataset_resource(
+                pipeline,
+                document,
+                run_id,
+                discovered_at,
+                assets,
+                dependencies,
+                dependency_keys,
+            )
+            continue
+        if kind == "linked_service":
+            parse_adf_linked_service_resource(pipeline, document, run_id, discovered_at, assets)
+            continue
+        if kind == "trigger":
+            parse_adf_trigger_resource(
+                pipeline,
+                document,
+                run_id,
+                discovered_at,
+                assets,
+                dependencies,
+                dependency_keys,
+            )
+            continue
+
         properties = pipeline.get("properties", {})
         activities = properties.get("activities", [])
-        pipeline_name = pipeline.get("name") or Path(document.path).stem
+        pipeline_name = adf_resource_name(pipeline, document.path)
         pipeline_id = stable_id("azure_data_factory", "pipeline", pipeline_name)
 
         add_asset(
@@ -123,9 +483,8 @@ def parse_adf_document(
                 if properties.get("annotations")
                 else None,
                 "row_count": None,
-                "metadata_json": json.dumps(
+                "metadata_json": sanitized_json(
                     {"activity_count": len(activities), "parameters": properties.get("parameters", {})},
-                    sort_keys=True,
                 ),
                 "discovered_at": discovered_at,
             },
@@ -148,7 +507,7 @@ def parse_adf_document(
                     "owner": None,
                     "criticality": None,
                     "row_count": None,
-                    "metadata_json": json.dumps(activity, sort_keys=True),
+                    "metadata_json": sanitized_json(activity),
                     "discovered_at": discovered_at,
                 },
             )
@@ -166,9 +525,46 @@ def parse_adf_document(
                 },
             )
 
+            for upstream in activity.get("dependsOn", []) or []:
+                upstream_name = upstream.get("activity") if isinstance(upstream, dict) else None
+                if not upstream_name:
+                    continue
+                upstream_id = stable_id("azure_data_factory", "activity", pipeline_name, upstream_name)
+                add_asset(
+                    assets,
+                    {
+                        "run_id": run_id,
+                        "asset_id": upstream_id,
+                        "source_system": "azure_data_factory",
+                        "asset_type": "adf_activity",
+                        "asset_name": f"{pipeline_name}.{upstream_name}",
+                        "platform": "Azure",
+                        "technology": "ADF Activity",
+                        "raw_path": document.path,
+                        "owner": None,
+                        "criticality": None,
+                        "row_count": None,
+                        "metadata_json": sanitized_json({"referenced_by_depends_on": activity_name}),
+                        "discovered_at": discovered_at,
+                    },
+                )
+                add_dependency(
+                    dependencies,
+                    dependency_keys,
+                    {
+                        "run_id": run_id,
+                        "from_asset_id": activity_id,
+                        "to_asset_id": upstream_id,
+                        "dependency_type": "depends_on",
+                        "evidence": f"ADF activity dependsOn: {upstream_name}",
+                        "confidence": 0.95,
+                        "discovered_at": discovered_at,
+                    },
+                )
+
             for direction, dependency_type in (("inputs", "reads"), ("outputs", "writes")):
                 for ref in activity.get(direction, []) or []:
-                    ref_name = ref.get("referenceName") if isinstance(ref, dict) else None
+                    ref_name = parse_reference_name(ref)
                     if not ref_name:
                         continue
                     dataset_id = stable_id("azure_data_factory", "dataset", ref_name)
@@ -186,7 +582,7 @@ def parse_adf_document(
                             "owner": None,
                             "criticality": None,
                             "row_count": None,
-                            "metadata_json": json.dumps(ref, sort_keys=True),
+                            "metadata_json": sanitized_json(ref),
                             "discovered_at": discovered_at,
                         },
                     )
@@ -203,6 +599,77 @@ def parse_adf_document(
                             "discovered_at": discovered_at,
                         },
                     )
+
+            type_properties = activity.get("typeProperties", {})
+            notebook_name = parse_reference_name(type_properties.get("notebook"))
+            if notebook_name:
+                notebook_id = stable_id("azure_synapse", "notebook", notebook_name)
+                add_asset(
+                    assets,
+                    {
+                        "run_id": run_id,
+                        "asset_id": notebook_id,
+                        "source_system": "azure_synapse",
+                        "asset_type": "synapse_notebook",
+                        "asset_name": notebook_name,
+                        "platform": "Azure",
+                        "technology": "Synapse Notebook",
+                        "raw_path": document.path,
+                        "owner": None,
+                        "criticality": None,
+                        "row_count": None,
+                        "metadata_json": sanitized_json({"referenced_by_activity": activity_name}),
+                        "discovered_at": discovered_at,
+                    },
+                )
+                add_dependency(
+                    dependencies,
+                    dependency_keys,
+                    {
+                        "run_id": run_id,
+                        "from_asset_id": activity_id,
+                        "to_asset_id": notebook_id,
+                        "dependency_type": "orchestrates",
+                        "evidence": f"ADF activity notebook reference: {notebook_name}",
+                        "confidence": 0.85,
+                        "discovered_at": discovered_at,
+                    },
+                )
+
+            stored_procedure_name = type_properties.get("storedProcedureName")
+            if stored_procedure_name:
+                procedure_id = stable_id("azure_data_factory", "data_object", stored_procedure_name)
+                add_asset(
+                    assets,
+                    {
+                        "run_id": run_id,
+                        "asset_id": procedure_id,
+                        "source_system": "azure_data_factory",
+                        "asset_type": "adf_data_object",
+                        "asset_name": stored_procedure_name,
+                        "platform": "Azure",
+                        "technology": "ADF stored procedure reference",
+                        "raw_path": document.path,
+                        "owner": None,
+                        "criticality": None,
+                        "row_count": None,
+                        "metadata_json": sanitized_json({"referenced_by_activity": activity_name}),
+                        "discovered_at": discovered_at,
+                    },
+                )
+                add_dependency(
+                    dependencies,
+                    dependency_keys,
+                    {
+                        "run_id": run_id,
+                        "from_asset_id": activity_id,
+                        "to_asset_id": procedure_id,
+                        "dependency_type": "references",
+                        "evidence": f"ADF stored procedure reference: {stored_procedure_name}",
+                        "confidence": 0.8,
+                        "discovered_at": discovered_at,
+                    },
+                )
 
 
 def parse_synapse_csv(
@@ -254,7 +721,7 @@ def parse_synapse_csv(
                 "owner": normalized.get("owner"),
                 "criticality": normalized.get("criticality"),
                 "row_count": as_int(normalized.get("row_count")),
-                "metadata_json": json.dumps(normalized, sort_keys=True),
+                "metadata_json": sanitized_json(normalized),
                 "discovered_at": discovered_at,
             },
         )
@@ -278,7 +745,7 @@ def parse_synapse_csv(
                     "owner": None,
                     "criticality": None,
                     "row_count": None,
-                    "metadata_json": json.dumps({"referenced_by": object_name}, sort_keys=True),
+                    "metadata_json": sanitized_json({"referenced_by": object_name}),
                     "discovered_at": discovered_at,
                 },
             )
@@ -321,15 +788,14 @@ def parse_sql_document(
             "owner": None,
             "criticality": None,
             "row_count": None,
-            "metadata_json": json.dumps({"reference_count": 0}, sort_keys=True),
+            "metadata_json": sanitized_json({"reference_count": 0}),
             "discovered_at": discovered_at,
         },
     )
 
     references = extract_sql_references(document.content)
-    assets[script_id]["metadata_json"] = json.dumps(
+    assets[script_id]["metadata_json"] = sanitized_json(
         {"reference_count": len(references), "references": references},
-        sort_keys=True,
     )
 
     for reference in references:
@@ -348,7 +814,7 @@ def parse_sql_document(
                 "owner": None,
                 "criticality": None,
                 "row_count": None,
-                "metadata_json": json.dumps({"referenced_by": script_name}, sort_keys=True),
+                "metadata_json": sanitized_json({"referenced_by": script_name}),
                 "discovered_at": discovered_at,
             },
         )
@@ -409,13 +875,12 @@ def parse_notebook_document(
             "owner": None,
             "criticality": None,
             "row_count": None,
-            "metadata_json": json.dumps(
+            "metadata_json": sanitized_json(
                 {
                     "reference_count": len(references),
                     "references": references,
                     "notebook_metadata": payload.get("metadata", {}),
                 },
-                sort_keys=True,
             ),
             "discovered_at": discovered_at,
         },
@@ -437,7 +902,7 @@ def parse_notebook_document(
                 "owner": None,
                 "criticality": None,
                 "row_count": None,
-                "metadata_json": json.dumps({"referenced_by": notebook_name}, sort_keys=True),
+                "metadata_json": sanitized_json({"referenced_by": notebook_name}),
                 "discovered_at": discovered_at,
             },
         )
@@ -561,6 +1026,9 @@ def build_risk_register(
         if asset["asset_type"] in {"adf_pipeline", "sql_script", "synapse_notebook"}:
             score += 10
             factors.append("requires orchestration or code migration")
+        if asset["asset_type"] in {"adf_linked_service", "adf_dataset"}:
+            score += 10
+            factors.append("connection and dataset mapping required")
         if asset["asset_type"] in {"synapse_external_table", "synapse_serverless_database"}:
             score += 10
             factors.append("external storage and security mapping required")
@@ -627,6 +1095,13 @@ def build_blueprint(
                 "Port Spark and SQL cells to Databricks notebooks.",
                 "Replace Synapse-specific utilities and linked service references.",
             ]
+        elif asset_type == "adf_trigger":
+            target_pattern = "Lakeflow Job schedule"
+            target_schema = "workflows"
+            notes = [
+                "Map trigger recurrence to Databricks job schedule.",
+                "Confirm time zone, pause state and parameter behavior.",
+            ]
         elif asset_type == "adf_pipeline":
             target_pattern = "Databricks Lakeflow Job"
             target_schema = "workflows"
@@ -638,6 +1113,34 @@ def build_blueprint(
             target_pattern = "Databricks job task or notebook task"
             target_schema = "workflows"
             notes = ["Map activity type to an equivalent Databricks task implementation."]
+        elif asset_type == "adf_dataset":
+            target_pattern = "Unity Catalog table or volume mapping"
+            target_schema = "control"
+            notes = [
+                "Resolve dataset linked service and physical table or storage path.",
+                "Classify as managed Delta, external table, volume or federation source.",
+            ]
+        elif asset_type == "adf_linked_service":
+            target_pattern = "Databricks secret-backed connection"
+            target_schema = "control"
+            notes = [
+                "Move credentials to Databricks secrets or Unity Catalog connections.",
+                "Validate network path and authentication method.",
+            ]
+        elif asset_type == "adf_storage_path":
+            target_pattern = "Unity Catalog external volume or external location"
+            target_schema = "control"
+            notes = [
+                "Map storage path to an external location and volume when direct file access is needed.",
+                "Confirm owner system and lifecycle policy.",
+            ]
+        elif asset_type == "adf_data_object":
+            target_pattern = "Unity Catalog object mapping"
+            target_schema = "silver"
+            notes = [
+                "Resolve object to source inventory and target table pattern.",
+                "Use as bridge between orchestration metadata and data object inventory.",
+            ]
         elif asset_type == "sql_script":
             target_pattern = "Databricks SQL or PySpark transformation"
             target_schema = "workflows"
@@ -701,6 +1204,36 @@ def build_data_quality_plan(
                     "metadata",
                     "error",
                     "Confirm serverless views and external tables are fully inventoried.",
+                ),
+            ]
+        elif asset["asset_type"] in {"adf_dataset", "adf_storage_path"}:
+            checks = [
+                (
+                    "physical_reference_resolution",
+                    "metadata",
+                    "error",
+                    "Confirm the dataset resolves to a table, file path, volume or external location.",
+                ),
+                (
+                    "ownership_classification",
+                    "governance",
+                    "warning",
+                    "Confirm whether Databricks or another platform owns the data lifecycle.",
+                ),
+            ]
+        elif asset["asset_type"] == "adf_linked_service":
+            checks = [
+                (
+                    "secret_redaction_review",
+                    "security",
+                    "error",
+                    "Confirm credentials are not stored in metadata outputs and are moved to secrets.",
+                ),
+                (
+                    "network_connectivity_review",
+                    "security",
+                    "warning",
+                    "Confirm the future Databricks workspace can reach the referenced source.",
                 ),
             ]
         else:

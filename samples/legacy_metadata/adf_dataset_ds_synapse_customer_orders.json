@@ -1,0 +1,15 @@
+{
+  "name": "ds_synapse_customer_orders",
+  "type": "Microsoft.DataFactory/factories/datasets",
+  "properties": {
+    "linkedServiceName": {
+      "referenceName": "ls_synapse_dedicated_sql",
+      "type": "LinkedServiceReference"
+    },
+    "type": "AzureSqlDWTable",
+    "typeProperties": {
+      "schema": "dbo",
+      "table": "CustomerOrders"
+    }
+  }
+}
