@@ -1,0 +1,25 @@
+{
+  "customer": "example-customer",
+  "assessment_id": "migration-assessment-001",
+  "landing_root": "/Volumes/migration_accelerator_dev/landing/legacy_metadata",
+  "exports": [
+    {
+      "source_system": "azure_data_factory",
+      "path": "adf/",
+      "formats": ["json"],
+      "description": "ADF pipeline, dataset, linked service and trigger exports"
+    },
+    {
+      "source_system": "azure_synapse",
+      "path": "synapse/",
+      "formats": ["csv", "sql", "ipynb"],
+      "description": "Synapse inventory, serverless external table DDL, SQL scripts and notebooks"
+    },
+    {
+      "source_system": "sql_server",
+      "path": "sqlserver/inventory/",
+      "formats": ["csv"],
+      "description": "SQL Server object inventory exported from read-only metadata queries"
+    }
+  ]
+}
