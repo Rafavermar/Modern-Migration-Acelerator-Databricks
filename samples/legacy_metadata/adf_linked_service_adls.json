@@ -1,0 +1,11 @@
+{
+  "name": "ls_adls_legacy_lake",
+  "type": "Microsoft.DataFactory/factories/linkedservices",
+  "properties": {
+    "type": "AzureBlobFS",
+    "typeProperties": {
+      "url": "https://storage.dfs.core.windows.net",
+      "accountKey": "do-not-store"
+    }
+  }
+}
