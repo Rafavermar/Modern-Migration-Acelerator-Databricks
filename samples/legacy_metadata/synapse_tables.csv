@@ -1,0 +1,9 @@
+source_system,database,schema,table,object_name,object_type,row_count,owner,criticality,engine,location,format,depends_on
+azure_synapse,sales,dbo,CustomerOrders,,table,25000000,data-platform,critical,Dedicated SQL Pool,,,
+azure_synapse,sales,dbo,Customers,,table,1200000,data-platform,high,Dedicated SQL Pool,,,
+azure_synapse,sales,mart,FactOrders,,table,25000000,analytics,high,Dedicated SQL Pool,,,sales.dbo.CustomerOrders|sales.mart.DimCustomer
+azure_synapse,sales,mart,DimCustomer,,table,1200000,analytics,medium,Dedicated SQL Pool,,,sales.dbo.Customers
+azure_synapse,legacy_lake,,,,serverless_database,,data-platform,high,Serverless SQL Pool,,,
+azure_synapse,legacy_lake,ext,ExternalOrders,,external_table,,data-platform,high,Serverless SQL Pool,abfss://legacy@storage.dfs.core.windows.net/orders/,parquet,
+azure_synapse,legacy_lake,ext,ExternalCustomers,,external_table,,data-platform,medium,Serverless SQL Pool,abfss://legacy@storage.dfs.core.windows.net/customers/,parquet,
+azure_synapse,legacy_lake,rpt,vw_order_customer,,view,,analytics,medium,Serverless SQL Pool,,,legacy_lake.ext.ExternalOrders|legacy_lake.ext.ExternalCustomers

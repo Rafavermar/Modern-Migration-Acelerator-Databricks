@@ -1,0 +1,52 @@
+{
+  "name": "pl_ingest_customer_orders",
+  "properties": {
+    "folder": {
+      "name": "sales"
+    },
+    "annotations": [
+      "critical"
+    ],
+    "parameters": {
+      "load_date": {
+        "type": "String"
+      }
+    },
+    "activities": [
+      {
+        "name": "copy_synapse_orders",
+        "type": "Copy",
+        "inputs": [
+          {
+            "referenceName": "ds_synapse_customer_orders",
+            "type": "DatasetReference"
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "ds_adls_orders_raw",
+            "type": "DatasetReference"
+          }
+        ],
+        "typeProperties": {
+          "source": {
+            "type": "SqlSource"
+          },
+          "sink": {
+            "type": "ParquetSink"
+          }
+        }
+      },
+      {
+        "name": "run_order_quality_checks",
+        "type": "SqlServerStoredProcedure",
+        "inputs": [
+          {
+            "referenceName": "ds_synapse_customer_orders",
+            "type": "DatasetReference"
+          }
+        ]
+      }
+    ]
+  }
+}
