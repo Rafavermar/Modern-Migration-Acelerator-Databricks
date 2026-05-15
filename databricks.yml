@@ -1,0 +1,26 @@
+bundle:
+  name: modern_migration_accelerator_databricks
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog used for MVP Delta outputs.
+    default: migration_accelerator_dev
+  source_root:
+    description: Legacy metadata source folder. Defaults to bundle sample files.
+    default: ${workspace.file_path}/samples/legacy_metadata
+  spark_version:
+    description: Databricks Runtime version for the MVP job cluster.
+    default: 15.4.x-scala2.12
+  node_type_id:
+    description: Small full Databricks trial node type. Override if unavailable in your workspace.
+    default: Standard_DS3_v2
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
