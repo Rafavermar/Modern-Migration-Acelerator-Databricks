@@ -18,6 +18,7 @@ Included now:
 Deferred from the first deterministic build, but still planned for the full product:
 
 - Databricks Vector Search.
+- RAG over legacy artifacts and generated blueprints.
 - MLflow Tracking or MLflow Tracing.
 - Databricks Model Serving.
 - GitHub Actions, Azure DevOps or Jenkins automation.
@@ -266,6 +267,7 @@ Documented future extensions:
 - `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md`
 - `docs/METADATA_FRAMEWORK.md`
 - `docs/PRODUCT_POSITIONING.md`
+- `docs/ADVANCED_CAPABILITIES_ROADMAP.md`
 - `docs/PHASE_2_VECTOR_SEARCH.md`
 - `docs/PHASE_2_MLFLOW_OBSERVABILITY.md`
 - `docs/PHASE_2_NEO4J_GRAPH.md`
