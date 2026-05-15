@@ -23,6 +23,12 @@ Use small, reviewable commits with Conventional Commit prefixes:
 
 ## Local checks
 
+Prepare the development environment first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_dev_env.ps1
+```
+
 Run this before merging a feature into `develop`:
 
 ```powershell
@@ -34,6 +40,8 @@ When Bash is available, the equivalent is:
 ```bash
 bash scripts/local_smoke_test.sh
 ```
+
+On Windows, prefer Git Bash from `C:\Program Files\Git\bin\bash.exe` if the plain `bash` command points to WSL.
 
 Do not run Databricks deployment commands until the Full Trial workspace is configured.
 
