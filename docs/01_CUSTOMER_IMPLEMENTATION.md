@@ -15,11 +15,11 @@ The customer does not copy this repository into every legacy system. The impleme
 
 The MVP focuses on steps 1 to 5. Step 6 is where implementation choices become customer-specific.
 
-Before positioning the accelerator, review `docs/PRODUCT_POSITIONING.md`. It defines where this product fits, when existing tools are better and how to decide between federation, ingestion, external tables and volumes.
+Before positioning the accelerator, review `docs/00_PRODUCT_POSITIONING.md`. It defines where this product fits, when existing tools are better and how to decide between federation, ingestion, external tables and volumes.
 
-For the first real Databricks execution, follow `docs/FIRST_RUN_RUNBOOK.md`. For customer discovery, use `contracts/customer_intake_checklist.md`.
+For the first real Databricks execution, follow `docs/02_FIRST_RUN_RUNBOOK.md`. For customer discovery, use `contracts/customer_intake_checklist.md`.
 
-For Vector Search, RAG, MLflow, Model Serving and Neo4j planning, use `docs/ADVANCED_CAPABILITIES_ROADMAP.md`. These are staged extensions, not first-run requirements.
+For Vector Search, RAG, MLflow, Model Serving and Neo4j planning, use `docs/05_ADVANCED_CAPABILITIES.md`. These are staged extensions, not first-run requirements.
 
 ## Metadata landing contract
 

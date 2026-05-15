@@ -93,7 +93,7 @@ Create or select a governed landing volume:
 /Volumes/<catalog>/landing/legacy_metadata/
 ```
 
-Upload customer exports using the landing contract in `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md`.
+Upload customer exports using the landing contract in `docs/01_CUSTOMER_IMPLEMENTATION.md`.
 
 Then set:
 
