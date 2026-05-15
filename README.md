@@ -32,6 +32,9 @@ The required MVP audit and gold outputs are:
 
 - `control.run_log`
 - `control.metadata_snapshots`
+- `gold.assessment_summary`
+- `gold.asset_priority_matrix`
+- `gold.graph_edges`
 - `gold.risk_register`
 - `gold.target_databricks_blueprint`
 - `gold.data_quality_plan`
@@ -41,6 +44,15 @@ The accelerator also writes internal Delta tables:
 - `bronze.raw_metadata`
 - `silver.assets`
 - `silver.dependencies`
+
+Read the MVP results in this order:
+
+1. `gold.assessment_summary` for the one-row executive view.
+2. `gold.asset_priority_matrix` for the review backlog.
+3. `gold.graph_edges` for readable dependency relationships.
+4. `gold.risk_register` for risk detail.
+5. `gold.target_databricks_blueprint` for target pattern decisions.
+6. `gold.data_quality_plan` for validation work.
 
 By default the catalog is `migration_accelerator_dev`. Override it with `DATABRICKS_CATALOG` in `.env`.
 

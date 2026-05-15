@@ -71,9 +71,20 @@ Expected Delta outputs:
 - `bronze.raw_metadata`
 - `silver.assets`
 - `silver.dependencies`
+- `gold.assessment_summary`
+- `gold.asset_priority_matrix`
+- `gold.graph_edges`
 - `gold.risk_register`
 - `gold.target_databricks_blueprint`
 - `gold.data_quality_plan`
+
+First review query order:
+
+```sql
+SELECT * FROM gold.assessment_summary;
+SELECT * FROM gold.asset_priority_matrix ORDER BY review_priority, risk_score DESC;
+SELECT * FROM gold.graph_edges;
+```
 
 ## 6. Run the target demo
 

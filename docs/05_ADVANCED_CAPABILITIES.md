@@ -19,6 +19,9 @@ Do not start advanced phases until:
 
 - `silver.assets` is trusted.
 - `silver.dependencies` is trusted.
+- `gold.assessment_summary` is useful.
+- `gold.asset_priority_matrix` is useful.
+- `gold.graph_edges` is useful.
 - `gold.risk_register` is reviewable.
 - `gold.target_databricks_blueprint` is reviewable.
 - Customer security approves indexing legacy documents.
@@ -29,7 +32,7 @@ Do not start advanced phases until:
 Purpose:
 
 - Explore graph impact analysis interactively.
-- Publish `silver.assets` and `silver.dependencies` to a graph database.
+- Publish `silver.assets`, `silver.dependencies` and `gold.graph_edges` to a graph database.
 - Keep Delta as the source of truth.
 
 Needed later:

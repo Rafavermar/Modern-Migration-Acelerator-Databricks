@@ -11,7 +11,15 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from modern_migration_accelerator.discovery import TextDocument
-from modern_migration_accelerator.pipelines.run_accelerator import parse_documents
+from modern_migration_accelerator.pipelines.run_accelerator import (
+    build_asset_priority_matrix,
+    build_assessment_summary,
+    build_blueprint,
+    build_data_quality_plan,
+    build_graph_edges,
+    build_risk_register,
+    parse_documents,
+)
 
 
 class PipelineParsingTests(unittest.TestCase):
@@ -138,6 +146,46 @@ class PipelineParsingTests(unittest.TestCase):
 
         self.assertIn("adf_trigger", {asset["asset_type"] for asset in assets})
         self.assertEqual(dependencies[0]["dependency_type"], "triggers")
+
+    def test_builds_human_readable_consumption_outputs(self) -> None:
+        document = TextDocument(
+            path="inventory.csv",
+            extension=".csv",
+            content=(
+                "source_system,database,schema,table,object_name,object_type,row_count,owner,"
+                "criticality,engine,location,format,depends_on\n"
+                "azure_synapse,sales,dbo,CustomerOrders,,table,25000000,owner,critical,"
+                "Dedicated SQL Pool,,,sales.dbo.Customers\n"
+            ),
+        )
+
+        _, assets, dependencies = parse_documents([document], "test_run")
+        risks = build_risk_register(assets, dependencies, "test_run")
+        blueprint = build_blueprint(assets, "test_run", "migration_accelerator_dev")
+        dq_plan = build_data_quality_plan(assets, "test_run", "migration_accelerator_dev")
+        graph_edges = build_graph_edges(assets, dependencies, "test_run")
+        priority_matrix = build_asset_priority_matrix(
+            assets,
+            dependencies,
+            risks,
+            blueprint,
+            dq_plan,
+            "test_run",
+        )
+        summary = build_assessment_summary(
+            assets,
+            dependencies,
+            risks,
+            blueprint,
+            dq_plan,
+            "test_run",
+        )
+
+        self.assertEqual(len(graph_edges), len(dependencies))
+        self.assertEqual(len(priority_matrix), len(assets))
+        self.assertEqual(summary[0]["summary_name"], "executive_summary")
+        self.assertGreaterEqual(summary[0]["asset_count"], 1)
+        self.assertIn(priority_matrix[0]["review_priority"], {"p1", "p2", "p3"})
 
 
 if __name__ == "__main__":
