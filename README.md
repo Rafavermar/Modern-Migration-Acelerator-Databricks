@@ -102,6 +102,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\local_smoke_test.ps1
 
 This validates Python syntax, unit tests and sample metadata parsing without calling Databricks.
 
+When the Full Trial exists, follow `docs/FIRST_RUN_RUNBOOK.md`. It includes the preflight checks, bundle validation, deployment order and first-run acceptance criteria.
+
 The local sample estate now includes:
 
 - ADF pipelines.
@@ -175,6 +177,18 @@ Before the first full run, have these ready:
 - A small available job cluster node type. The default is `Standard_DS3_v2`; override `DATABRICKS_NODE_TYPE_ID` if your workspace uses another node.
 - Legacy metadata exports, or use the included sample files for the first smoke test.
 
+Run the non-deploying preflight first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\preflight_full_trial.ps1
+```
+
+Or with Git Bash:
+
+```bash
+bash scripts/preflight_full_trial.sh
+```
+
 For real metadata, upload files to a Unity Catalog volume and set:
 
 ```bash
@@ -247,6 +261,8 @@ Do not create those files unless explicitly requested.
 
 Documented future extensions:
 
+- `docs/FIRST_RUN_RUNBOOK.md`
+- `contracts/customer_intake_checklist.md`
 - `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md`
 - `docs/METADATA_FRAMEWORK.md`
 - `docs/PRODUCT_POSITIONING.md`
