@@ -51,6 +51,24 @@ Copy the sample environment file and fill only the values you need:
 cp .env.example .env
 ```
 
+Create the local Python environment:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_dev_env.ps1
+```
+
+If you are already in Git Bash or Linux/macOS:
+
+```bash
+bash scripts/setup_dev_env.sh
+```
+
+On Windows, use Git Bash from `C:\Program Files\Git\bin\bash.exe` for the required `scripts/*.sh` files. The Windows `bash` command can point to WSL; if WSL has no distro installed, call Git Bash explicitly:
+
+```powershell
+& 'C:\Program Files\Git\bin\bash.exe' scripts/local_smoke_test.sh
+```
+
 Preferred authentication is a Databricks CLI profile:
 
 ```bash
