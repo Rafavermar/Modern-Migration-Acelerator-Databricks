@@ -105,6 +105,7 @@ This validates Python syntax, unit tests and sample metadata parsing without cal
 The local sample estate now includes:
 
 - ADF pipelines.
+- ADF datasets, linked services and triggers.
 - Synapse dedicated SQL tables.
 - Synapse serverless database inventory.
 - Synapse external tables.
@@ -112,6 +113,8 @@ The local sample estate now includes:
 - SQL scripts and dependencies.
 
 For real customer implementations, use `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md` as the operating model. The customer exports metadata into a governed landing area; the accelerator consumes those exports and generates the dependency graph, risk register and target blueprint.
+
+The lightweight metadata taxonomy is documented in `docs/METADATA_FRAMEWORK.md` and represented by `contracts/metadata_taxonomy.json`.
 
 ## Local SQL Server fixture
 
@@ -243,6 +246,7 @@ Do not create those files unless explicitly requested.
 Documented future extensions:
 
 - `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md`
+- `docs/METADATA_FRAMEWORK.md`
 - `docs/PHASE_2_VECTOR_SEARCH.md`
 - `docs/PHASE_2_MLFLOW_OBSERVABILITY.md`
 - `docs/PHASE_2_NEO4J_GRAPH.md`

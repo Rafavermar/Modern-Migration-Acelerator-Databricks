@@ -49,6 +49,7 @@ contracts/landing_manifest.example.json
 The current MVP parser supports these file families:
 
 - ADF pipeline exports as `.json`.
+- ADF dataset, linked service and trigger exports as `.json`.
 - Synapse or SQL Server inventory extracts as `.csv`.
 - Synapse notebooks as `.ipynb`.
 - SQL scripts, views, procedures and external table DDL as `.sql`.
