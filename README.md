@@ -111,6 +111,8 @@ The local sample estate now includes:
 - Synapse notebook sample.
 - SQL scripts and dependencies.
 
+For real customer implementations, use `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md` as the operating model. The customer exports metadata into a governed landing area; the accelerator consumes those exports and generates the dependency graph, risk register and target blueprint.
+
 ## Local SQL Server fixture
 
 SQL Server in Docker is prepared as a local fixture so we can simulate a legacy SQL Server source before the cloud accounts are ready.
@@ -146,6 +148,8 @@ local_outputs/legacy_metadata/sqlserver_inventory.csv
 ```
 
 More detail is in `docs/LOCAL_SQLSERVER_FIXTURE.md`.
+
+The SQL Server container is a developer fixture. In a real customer implementation, SQL Server metadata should usually be exported with approved read-only catalog queries and delivered to the metadata landing area.
 
 ## Full Databricks trial timing
 
@@ -238,6 +242,7 @@ Do not create those files unless explicitly requested.
 
 Documented future extensions:
 
+- `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md`
 - `docs/PHASE_2_VECTOR_SEARCH.md`
 - `docs/PHASE_2_MLFLOW_OBSERVABILITY.md`
 - `docs/PHASE_2_NEO4J_GRAPH.md`
