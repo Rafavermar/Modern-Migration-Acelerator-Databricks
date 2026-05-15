@@ -15,6 +15,8 @@ The customer does not copy this repository into every legacy system. The impleme
 
 The MVP focuses on steps 1 to 5. Step 6 is where implementation choices become customer-specific.
 
+Before positioning the accelerator, review `docs/PRODUCT_POSITIONING.md`. It defines where this product fits, when existing tools are better and how to decide between federation, ingestion, external tables and volumes.
+
 ## Metadata landing contract
 
 Recommended landing location:

@@ -114,6 +114,8 @@ The local sample estate now includes:
 
 For real customer implementations, use `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md` as the operating model. The customer exports metadata into a governed landing area; the accelerator consumes those exports and generates the dependency graph, risk register and target blueprint.
 
+Use `docs/PRODUCT_POSITIONING.md` to decide when this accelerator is appropriate, when existing tools are better, and how to choose between federation, ingestion, external tables and volumes.
+
 The lightweight metadata taxonomy is documented in `docs/METADATA_FRAMEWORK.md` and represented by `contracts/metadata_taxonomy.json`.
 
 ## Local SQL Server fixture
@@ -247,6 +249,7 @@ Documented future extensions:
 
 - `docs/CUSTOMER_IMPLEMENTATION_GUIDE.md`
 - `docs/METADATA_FRAMEWORK.md`
+- `docs/PRODUCT_POSITIONING.md`
 - `docs/PHASE_2_VECTOR_SEARCH.md`
 - `docs/PHASE_2_MLFLOW_OBSERVABILITY.md`
 - `docs/PHASE_2_NEO4J_GRAPH.md`
