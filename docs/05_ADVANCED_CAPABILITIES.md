@@ -32,7 +32,7 @@ Do not activate these layers until:
 Purpose:
 
 - Explore graph impact analysis interactively.
-- Publish `silver.assets`, `silver.dependencies` and `gold.graph_edges` to a graph database.
+- Publish the accelerator asset and dependency model to a graph database.
 - Keep Delta as the source of truth.
 
 Needed:
@@ -51,21 +51,41 @@ Local trial settings:
 
 Initial labels:
 
-- `Asset`
-- `Pipeline`
-- `Notebook`
-- `Table`
-- `ExternalTable`
-- `ServerlessDatabase`
-- `Procedure`
+- `MigrationRun`
+- `MigrationAsset`
+- `SourceSystem`
+- `TargetPattern`
 
 Initial relationships:
 
-- `DEPENDS_ON`
-- `READS`
-- `WRITES`
-- `ORCHESTRATES`
-- `REFERENCES`
+- `INCLUDES_ASSET`
+- `FROM_SOURCE_SYSTEM`
+- `HAS_TARGET_PATTERN`
+- `MIGRATION_DEPENDENCY`
+
+Local publish:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
+```
+
+The publisher reads the same metadata inputs as the demo run: `samples/legacy_metadata` plus `local_outputs/legacy_metadata` when SQL Server metadata has been exported. It enriches each asset with risk, priority, target pattern and DQ counts.
+
+Useful Neo4j Browser queries:
+
+```cypher
+MATCH (r:MigrationRun)-[:INCLUDES_ASSET]->(a:MigrationAsset)
+RETURN r, a
+LIMIT 50;
+```
+
+```cypher
+MATCH path = (a:MigrationAsset)-[:MIGRATION_DEPENDENCY*1..3]->(b:MigrationAsset)
+WHERE a.review_priority = 'p1' OR a.risk_level = 'high'
+RETURN path
+LIMIT 25;
+```
 
 ## Vector Search and RAG
 

@@ -117,6 +117,13 @@ Interpretation flow:
 
 Neo4j makes graph exploration visual. Vector Search makes discovery semantic. Both build on these Delta outputs.
 
+To publish the graph after the first trusted run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
+```
+
 ## What the customer provides
 
 For ADF:

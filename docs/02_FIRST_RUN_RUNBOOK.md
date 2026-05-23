@@ -142,7 +142,53 @@ Expected output:
 
 - `demo.target_migration_plan`
 
-## 8. Move from sample metadata to customer metadata
+## 8. Publish to Neo4j
+
+Check AuraDB connectivity:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_neo4j_connection.ps1
+```
+
+Publish the graph:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
+```
+
+Git Bash equivalent:
+
+```bash
+bash scripts/publish_neo4j_graph.sh
+bash scripts/verify_neo4j_graph.sh
+```
+
+Expected demo result after SQL Server fixture export:
+
+- `52` `MigrationAsset` nodes.
+- `37` `MIGRATION_DEPENDENCY` relationships.
+- `4` `SourceSystem` nodes.
+- `13` `TargetPattern` nodes.
+
+Neo4j Browser starter query:
+
+```cypher
+MATCH (r:MigrationRun)-[:INCLUDES_ASSET]->(a:MigrationAsset)
+RETURN r, a
+LIMIT 50;
+```
+
+Impact query:
+
+```cypher
+MATCH path = (a:MigrationAsset)-[:MIGRATION_DEPENDENCY*1..3]->(b:MigrationAsset)
+WHERE a.asset_name CONTAINS 'FactOrders'
+RETURN path
+LIMIT 25;
+```
+
+## 9. Move from sample metadata to customer metadata
 
 Create or select a governed landing volume:
 
@@ -172,7 +218,7 @@ Put customer artifacts under the same root, for example:
 
 For SQL Server, the easiest first implementation is export-only discovery: run the approved metadata query in `samples/sqlserver/extract/metadata_inventory.sql`, save the CSV under `sqlserver/inventory/`, then run the accelerator.
 
-## 9. Known first-run fixes
+## 10. Known first-run fixes
 
 Issue: `OSError: [Errno 5] Input/output error` while reading files under `/Workspace/Users/.../.bundle/.../files/samples/legacy_metadata`.
 
@@ -198,7 +244,7 @@ Cause: serverless task startup can hit transient Workspace Files reads.
 
 Fix: the jobs execute runtime Python scripts from the Unity Catalog volume instead of `/Workspace/.../.bundle/.../files`.
 
-## 10. Decide next phase
+## 11. Decide next phase
 
 After the first successful customer metadata run:
 

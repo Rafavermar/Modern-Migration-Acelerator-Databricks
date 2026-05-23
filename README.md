@@ -253,7 +253,7 @@ Supported file types are `.json` for ADF-like exports, `.csv` for Synapse or SQL
 
 Create **Neo4j AuraDB Professional - Free trial** for the first graph integration test. A 4GB vector-optimized instance is fine when you want to avoid friction for later graph plus vector experiments.
 
-Use the Databricks gold graph outputs first, then publish them to AuraDB. The needed information is:
+Use the accelerator graph outputs first, then publish them to AuraDB. The needed information is:
 
 - Neo4j URI.
 - Database name.
@@ -264,7 +264,23 @@ Use the Databricks gold graph outputs first, then publish them to AuraDB. The ne
 
 The dependency graph is stored in `silver.dependencies` and exposed for users in `gold.graph_edges`.
 
-The Neo4j integration plan is documented in `docs/05_ADVANCED_CAPABILITIES.md`.
+Publish and verify the graph locally:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
+```
+
+Git Bash equivalent:
+
+```bash
+bash scripts/publish_neo4j_graph.sh
+bash scripts/verify_neo4j_graph.sh
+```
+
+The publisher reads `samples/legacy_metadata` and also `local_outputs/legacy_metadata` when the SQL Server fixture has been exported. It creates `MigrationRun`, `MigrationAsset`, `SourceSystem`, `TargetPattern` and `MIGRATION_DEPENDENCY` records in Neo4j.
+
+The Neo4j workflow is documented in `docs/05_ADVANCED_CAPABILITIES.md`.
 
 ## Manual Databricks commands
 

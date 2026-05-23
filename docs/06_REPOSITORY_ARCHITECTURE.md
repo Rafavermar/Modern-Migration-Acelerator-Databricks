@@ -25,7 +25,10 @@ flowchart LR
 | `samples/legacy_metadata/` | Demo estate used for the first run. |
 | `samples/sqlserver/` | Local SQL Server fixture and metadata extraction query. |
 | `scripts/` | Local setup, preflight, bundle validation, deploy, run and connectivity helpers. |
+| `scripts/publish_neo4j_graph.*` | Publishes the normalized asset and dependency graph to Neo4j AuraDB. |
+| `scripts/verify_neo4j_graph.*` | Verifies the latest Neo4j graph publication. |
 | `src/modern_migration_accelerator/pipelines/run_accelerator.py` | Serverless-safe accelerator entrypoint. It loads text metadata, normalizes assets, builds dependencies, risks, blueprint, DQ plan and graph edges. |
+| `src/modern_migration_accelerator/neo4j_graph.py` | Builds and publishes the Neo4j graph payload. |
 | `src/modern_migration_accelerator/pipelines/run_target_demo.py` | Demo consumer of the generated blueprint. |
 | `contracts/` | Customer intake checklist, inventory CSV contract and metadata taxonomy. |
 | `docs/` | Product positioning, implementation guide, first-run runbook and advanced capability plan. |
@@ -39,7 +42,8 @@ flowchart LR
 5. Run the accelerator.
 6. Review gold and control tables.
 7. Run the target demo.
-8. Publish to Neo4j, Vector Search and MLflow-backed workflows after Delta outputs are trusted.
+8. Publish to Neo4j.
+9. Add Vector Search and MLflow-backed workflows after graph and Delta outputs are trusted.
 
 ## Metadata Modes
 
