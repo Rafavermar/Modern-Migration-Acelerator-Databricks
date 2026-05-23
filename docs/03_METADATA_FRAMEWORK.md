@@ -76,6 +76,25 @@ SQL Server:
 - Local Docker fixture for developer tests.
 - Starter metadata extraction query for real customer environments.
 
+## Extractor boundaries
+
+Extractors are the source-specific adapters that convert raw exports into the common metadata model:
+
+- ADF JSON to assets and dependencies.
+- Synapse or SQL Server CSV inventory to assets.
+- SQL scripts and DDL to object references.
+- Notebooks to referenced tables, views and SQL snippets.
+- Generated Delta outputs to semantic chunks for Vector Search.
+
+They live mainly in:
+
+- `src/modern_migration_accelerator/pipelines/run_accelerator.py`
+- `src/modern_migration_accelerator/parsers/sql.py`
+- `src/modern_migration_accelerator/pipelines/run_semantic_index_prep.py`
+- `samples/sqlserver/extract/metadata_inventory.sql`
+
+Future extractor improvements do not mean changing the product architecture. They mean teaching the accelerator to understand more customer-specific artifact shapes while still writing the same `silver` and `gold` outputs.
+
 ## Deliberate non-goals
 
 The accelerator does not try to replace enterprise catalogs, scanners or lineage platforms. It creates a lightweight, Databricks-native metadata layer that can be enriched by source-specific extractors, exported to Neo4j and indexed for semantic search.

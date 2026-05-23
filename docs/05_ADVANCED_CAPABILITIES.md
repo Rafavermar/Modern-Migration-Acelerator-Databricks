@@ -126,7 +126,12 @@ Terminology:
 | Vector Search endpoint | `mma-vector-search-dev`, the serving endpoint for vector index queries. It is not a normal Model Serving endpoint. |
 | Vector Search index | `migration_accelerator_dev.gold.semantic_legacy_documents_vs`, the Unity Catalog-managed searchable index. |
 | Delta Sync | Databricks keeps the index aligned with a Delta source table. Dev uses triggered sync. |
+| ANN | Approximate nearest neighbor search over embedding vectors. Databricks Vector Search uses HNSW and L2 distance for ANN retrieval. |
+| L2 distance | Euclidean distance between vectors. Lower distance means closer vectors. |
+| Cosine similarity | Angle-based similarity. If self-managed embeddings need cosine-equivalent ranking, normalize vectors before indexing and querying. |
 | Hybrid search | Combines semantic vector retrieval with keyword matching. |
+| Reciprocal Rank Fusion | Ranking method used by Databricks hybrid search to merge ANN and full-text results. |
+| Reranker | Optional second pass that can re-score retrieved rows for higher precision when latency and cost allow it. |
 | RAG | Retrieval-augmented generation. In this repo the first layer retrieves and summarizes evidence before any LLM is added. |
 
 Purpose:
@@ -176,6 +181,8 @@ Dev Vector Search configuration:
 - primary key: `chunk_id`
 - embedding source column: `chunk_text`
 - embedding endpoint: `databricks-qwen3-embedding-0-6b`
+- ANN algorithm and distance: Databricks-managed HNSW with L2 distance
+- query type: `HYBRID` by default in repo scripts
 
 How it is implemented:
 
@@ -187,9 +194,19 @@ How it is implemented:
 6. `create_vector_search_dev.*` creates `mma-vector-search-dev`.
 7. The script creates `migration_accelerator_dev.gold.semantic_legacy_documents_vs` as a `DELTA_SYNC` and `HYBRID` index.
 8. Databricks computes embeddings from `chunk_text` with `databricks-qwen3-embedding-0-6b`.
-9. The script waits until the index is ready and triggers sync.
-10. `query_vector_search_dev.*` queries the REST endpoint and returns relevant chunks.
-11. `rag_search_dev.*` parses those rows and writes a deterministic evidence brief plus trace JSON.
+9. The same embedding endpoint is used at query time when the user passes `query_text`.
+10. The script waits until the index is ready and triggers sync.
+11. `query_vector_search_dev.*` queries the REST endpoint and returns relevant chunks.
+12. `rag_search_dev.*` parses those rows and writes a deterministic evidence brief plus trace JSON.
+
+Metric and model alignment:
+
+- In this dev index, metric selection is not a repo parameter. Databricks Vector Search uses HNSW with L2 distance for ANN retrieval.
+- Because this is a managed Delta Sync index, Databricks embeds `chunk_text` and embeds `query_text` with the same configured endpoint: `databricks-qwen3-embedding-0-6b`.
+- If a customer switches to self-managed embeddings or `query_vector`, the indexed vectors and query vectors must come from the same embedding model, same dimensions and same preprocessing.
+- If the customer expects cosine-style similarity with self-managed vectors, normalize vectors before indexing and querying; normalized vectors make L2 ranking equivalent to cosine ranking.
+- `HYBRID` search adds keyword/full-text matching and merges it with ANN ranking. Use it when questions include asset names, table names, technical terms or platform-specific jargon.
+- Start with `num_results=5` for demos. Increase only when reviewers need broader evidence, because more results increase latency and cost.
 
 How to use it:
 
@@ -224,6 +241,15 @@ Where to see it in Databricks:
 - Sync status: open the vector index, then use the `Overview` and `Data Ingest` section.
 - Endpoint: verify with `databricks --profile <profile> vector-search-endpoints get-endpoint mma-vector-search-dev`.
 - Do not look for `mma-vector-search-dev` under `AI/ML > Serving`; Vector Search endpoints are managed separately from normal serving endpoints.
+
+Screenshot-friendly verification commands:
+
+```powershell
+databricks --profile mma-fulltrial vector-search-endpoints get-endpoint mma-vector-search-dev
+databricks --profile mma-fulltrial vector-search-indexes get-index migration_accelerator_dev.gold.semantic_legacy_documents_vs
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk assets should be migrated first?"
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which high risk assets should be migrated first?"
+```
 
 Programmatic query options:
 

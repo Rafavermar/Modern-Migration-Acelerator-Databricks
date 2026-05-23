@@ -179,6 +179,8 @@ Default dev configuration:
 - embedding endpoint: `databricks-qwen3-embedding-0-6b`
 - index subtype: `HYBRID`
 - sync mode: `TRIGGERED`
+- ANN algorithm and distance: Databricks-managed HNSW with L2 distance
+- query mode: `HYBRID` by default
 
 Query the index:
 
@@ -204,6 +206,16 @@ Where to see it:
 - CLI/API: `databricks --profile <profile> vector-search-endpoints get-endpoint mma-vector-search-dev`.
 
 It is normal that `mma-vector-search-dev` does not appear under `AI/ML > Serving`. Vector Search endpoints are not standard Model Serving endpoints. The embedding model endpoint is Databricks-managed and may appear under AI Gateway or foundation model areas depending on workspace UI and filters.
+
+Useful verification commands for screenshots:
+
+```powershell
+databricks --profile mma-fulltrial vector-search-endpoints get-endpoint mma-vector-search-dev
+databricks --profile mma-fulltrial vector-search-indexes get-index migration_accelerator_dev.gold.semantic_legacy_documents_vs
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk assets should be migrated first?"
+```
+
+Metric note: this managed index embeds rows and text queries with `databricks-qwen3-embedding-0-6b`. Databricks Vector Search uses HNSW with L2 distance for the ANN part of retrieval. If a customer later uses self-managed vectors or `query_vector`, the indexed vectors and query vectors must use the same model, dimensions and preprocessing.
 
 ## 10. Run RAG-ready search utility
 

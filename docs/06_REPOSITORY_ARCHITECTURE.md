@@ -103,6 +103,8 @@ Current dev validation:
 | Sync mode | `TRIGGERED`. |
 | Primary key | `chunk_id`. |
 | Text column | `chunk_text`. |
+| ANN metric | Databricks-managed HNSW with L2 distance. |
+| Query mode | `HYBRID` by default in repo scripts. |
 
 Databricks also creates internal service resources for Vector Search, such as a Delta Sync pipeline ID. Those IDs are workspace-generated and should not be hardcoded in the repo.
 
@@ -130,6 +132,22 @@ Databricks also creates internal service resources for Vector Search, such as a 
 | `src/modern_migration_accelerator/pipelines/run_target_demo.py` | Demo consumer of the generated blueprint. |
 | `src/modern_migration_accelerator/pipelines/run_semantic_index_prep.py` | Builds sanitized chunks from legacy artifacts and generated outputs. |
 | `src/modern_migration_accelerator/neo4j_graph.py` | Builds and publishes the Neo4j graph payload. |
+
+## Extractor Map
+
+In this project, an extractor means code that turns customer-provided artifacts into normalized assets and dependencies. The first implementation is intentionally compact; richer customer patterns can be added without changing the product flow.
+
+| Area | Current implementation | Function |
+| --- | --- | --- |
+| Source file discovery | `src/modern_migration_accelerator/discovery.py`, `run_accelerator.py::load_text_documents` | Finds supported `.json`, `.csv`, `.sql` and `.ipynb` files locally or in Unity Catalog volumes. |
+| ADF JSON parsing | `run_accelerator.py::parse_adf_document`, `parse_adf_dataset_resource`, `parse_adf_linked_service_resource`, `parse_adf_trigger_resource` | Extracts pipelines, activities, datasets, linked services, triggers and references. |
+| Synapse and SQL Server inventory CSV | `run_accelerator.py::parse_synapse_csv` | Converts inventory rows into assets for Synapse, SQL Server and similar tabular metadata exports. |
+| SQL scripts and DDL | `run_accelerator.py::parse_sql_document`, `src/modern_migration_accelerator/parsers/sql.py` | Extracts SQL object references from scripts, views, procedures and external table DDL. |
+| Notebooks | `run_accelerator.py::parse_notebook_document` | Reads notebook cells and extracts SQL/table references. |
+| Semantic corpus | `run_semantic_index_prep.py` | Sanitizes, chunks and shapes searchable documents for Vector Search. |
+| SQL Server export fixture | `scripts/export_sqlserver_metadata.*`, `samples/sqlserver/extract/metadata_inventory.sql` | Produces a CSV inventory from SQL Server metadata. |
+
+Improving extractors usually means adding support for more real-world source shapes: parameterized ADF expressions, nested activity patterns, customer naming conventions, stored procedure dependencies, Purview exports, Synapse workspace exports or additional SQL dialects. It is usually low to moderate effort when the artifact format is stable and sample files are available. It becomes harder when dependencies only appear at runtime, inside dynamic strings, inside custom frameworks or behind restricted source access.
 
 ## Execution Order
 
