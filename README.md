@@ -422,6 +422,18 @@ The starter utility does retrieval and grounded summarization only. Add `-LogMlf
 RAG/search itself is not a Databricks UI object yet. Vector Search is visible in `Catalog`; MLflow artifacts are visible in `Experiments` only when `-LogMlflow` is used.
 By default `-LogMlflow` writes to `databricks://<DATABRICKS_PROFILE>`. Override with `MLFLOW_TRACKING_URI` only when the customer uses a different tracking target.
 
+Generate an LLM-grounded answer after retrieval:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?" -GenerateAnswer -LogMlflow
+```
+
+Default dev LLM endpoint:
+
+- `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`
+
+This calls a Databricks Foundation Model API chat endpoint, writes `local_outputs/rag/latest_llm_answer.md` and logs the generation artifacts to MLflow when `-LogMlflow` is used.
+
 Risk and review priority are calculated by the accelerator from metadata such as asset type, dependencies, row counts and criticality. Customers improve scoring by providing richer metadata exports; they do not need to manually tag every artifact before the first run.
 
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.

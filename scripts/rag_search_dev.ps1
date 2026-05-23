@@ -1,6 +1,10 @@
 param(
     [string]$Question = "Which high risk legacy assets should be migrated first?",
     [int]$NumResults = 5,
+    [switch]$GenerateAnswer,
+    [string]$LlmEndpoint = "",
+    [int]$MaxTokens = 700,
+    [double]$Temperature = 0.0,
     [switch]$LogMlflow
 )
 
@@ -27,6 +31,15 @@ $args = @(
     "$NumResults"
 )
 
+if ($GenerateAnswer) {
+    $args += "--generate-answer"
+}
+if ($LlmEndpoint) {
+    $args += @("--llm-endpoint", $LlmEndpoint)
+}
+if ($GenerateAnswer) {
+    $args += @("--max-tokens", "$MaxTokens", "--temperature", "$Temperature")
+}
 if ($LogMlflow) {
     $args += "--log-mlflow"
 }

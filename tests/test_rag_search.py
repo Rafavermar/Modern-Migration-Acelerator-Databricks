@@ -11,8 +11,10 @@ if str(SRC) not in sys.path:
 
 from modern_migration_accelerator.rag_search import (
     build_retrieval_brief,
+    build_llm_messages,
     configure_console_encoding,
     default_mlflow_tracking_uri,
+    extract_chat_content,
     parse_vector_search_rows,
 )
 
@@ -66,6 +68,31 @@ class RagSearchTests(unittest.TestCase):
 
     def test_configure_console_encoding_is_safe(self) -> None:
         configure_console_encoding()
+
+    def test_build_llm_messages_ground_prompt_in_evidence(self) -> None:
+        rows = [
+            {
+                "asset_name": "FactOrders",
+                "document_type": "asset_priority",
+                "risk_level": "high",
+                "review_priority": "p1",
+                "target_pattern": "Unity Catalog Delta table",
+                "source_path": "gold.asset_priority_matrix",
+                "chunk_text": "Priority: p1. Risk level: high.",
+            }
+        ]
+
+        messages = build_llm_messages("What moves first?", rows)
+
+        self.assertEqual(messages[0]["role"], "system")
+        self.assertIn("Use only the evidence", messages[0]["content"])
+        self.assertIn("Never recommend a p3", messages[0]["content"])
+        self.assertIn("FactOrders", messages[1]["content"])
+
+    def test_extract_chat_content_from_openai_style_response(self) -> None:
+        response = {"choices": [{"message": {"content": "Grounded answer."}}]}
+
+        self.assertEqual(extract_chat_content(response), "Grounded answer.")
 
 
 if __name__ == "__main__":

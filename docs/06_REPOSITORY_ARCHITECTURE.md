@@ -163,6 +163,7 @@ Improving extractors usually means adding support for more real-world source sha
 | `run_semantic_index_prep_dev.sh` | `run_semantic_index_prep.py` | Databricks Workflows, serverless Spark | `gold.semantic_legacy_documents` | Databricks `Catalog` |
 | `create_vector_search_dev.*` | `scripts/create_vector_search_dev.*` | Databricks Vector Search | endpoint and index | Databricks `Catalog`, CLI/API |
 | `rag_search_dev.*` | `src/modern_migration_accelerator/rag_search.py` | Local Python plus Databricks Vector Search API | `local_outputs/rag/*` | Local files; MLflow if `-LogMlflow` |
+| `rag_search_dev.* -GenerateAnswer` | `rag_search.py::invoke_chat_endpoint()` | Databricks Foundation Model API chat endpoint | `latest_generation.json`, `latest_llm_answer.md` | Local files; Databricks `Serving`; MLflow artifacts |
 | `rag_search_dev.* -LogMlflow` | `rag_search.py::log_to_mlflow()` | MLflow Tracking | run params, metric and artifacts | Databricks `Experiments` |
 | `publish_neo4j_graph.*` | `neo4j_graph.py` | Local Python plus Neo4j driver | graph nodes and relationships | Neo4j Aura Query/Explore |
 

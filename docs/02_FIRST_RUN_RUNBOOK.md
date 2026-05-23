@@ -269,6 +269,27 @@ Where to see it:
 If `Experiments` is empty after `-LogMlflow`, check the script output for `MLflow tracking URI`. It should be `databricks://mma-fulltrial` or the customer profile, not a local `mlruns` path.
 Also clear UI filters and search for `modern-migration-accelerator`.
 
+Optional LLM-grounded answer:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?" -GenerateAnswer -LogMlflow
+```
+
+What changes:
+
+- Retrieval stays the same: Vector Search returns evidence chunks.
+- The script sends the question and retrieved evidence to `DATABRICKS_LLM_ENDPOINT`.
+- Dev default is `databricks-gemma-3-12b`; override it in `.env` if the workspace uses another chat endpoint.
+- The generated answer is saved to `local_outputs/rag/latest_llm_answer.md`.
+- MLflow logs the generation JSON and generated answer artifact.
+- With `-LogMlflow`, MLflow manual traces are created for retrieval and LLM generation.
+
+Where to see the LLM endpoint:
+
+- Databricks `Serving` page shows Foundation Model API endpoints.
+- The run output prints `LLM endpoint: <name>`.
+- MLflow run artifacts show `latest_generation.json` and `latest_llm_answer.md`.
+
 ## 11. Publish to Neo4j
 
 Check AuraDB connectivity:

@@ -113,7 +113,8 @@ Role in the solution:
 - `gold.semantic_legacy_documents` is the governed corpus.
 - `semantic_legacy_documents_vs` is the retrieval index.
 - `rag_search_dev.*` converts raw search results into a reviewer-friendly evidence brief.
-- A later assistant should retrieve first, generate second, and log/evaluate every answer.
+- `rag_search_dev.* -GenerateAnswer` adds an LLM-grounded answer using a Databricks chat endpoint.
+- A future assistant endpoint should package the same retrieve-first, generate-second behavior behind Model Serving or AI Gateway.
 
 What the RAG/search command does:
 
@@ -125,6 +126,15 @@ What the RAG/search command does:
 6. Writes `latest_search.json` and `latest_trace.json` for review and future MLflow evaluation.
 
 It does not sort the whole estate by risk. It retrieves relevant evidence for the question. If returned chunks contain `p1` or high-risk assets, the brief highlights them first. It does not call an LLM yet.
+
+What `-GenerateAnswer` adds:
+
+1. Builds a grounded prompt from the same retrieved evidence.
+2. Calls the configured Databricks chat endpoint, default `databricks-gemma-3-12b`.
+3. Writes `latest_generation.json` and `latest_llm_answer.md`.
+4. With `-LogMlflow`, logs retrieval and generation artifacts and creates MLflow traces.
+
+The LLM answer is still advisory. It must not override `gold.risk_register`, `gold.asset_priority_matrix`, `gold.graph_edges` or human review.
 
 Terminology:
 
@@ -246,6 +256,12 @@ Build a RAG-ready brief:
 powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which high risk legacy assets should be migrated first?"
 ```
 
+Generate an LLM-grounded answer:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which high risk legacy assets should be migrated first?" -GenerateAnswer -LogMlflow
+```
+
 Where to see it in Databricks:
 
 - Source table: `Catalog` > `migration_accelerator_dev` > `gold` > `semantic_legacy_documents`.
@@ -253,6 +269,7 @@ Where to see it in Databricks:
 - Sync status: open the vector index, then use the `Overview` and `Data Ingest` section.
 - Endpoint: verify with `databricks --profile <profile> vector-search-endpoints get-endpoint mma-vector-search-dev`.
 - Do not look for `mma-vector-search-dev` under `AI/ML > Serving`; Vector Search endpoints are managed separately from normal serving endpoints.
+- LLM endpoint: Databricks `Serving` page, Foundation Model API endpoints. Dev default is `databricks-gemma-3-12b`.
 
 Screenshot-friendly verification commands:
 
@@ -317,9 +334,10 @@ What the two MLflow commands do:
 
 - `setup_dev_env.ps1 -InstallGenAiDeps` installs the optional `mlflow[databricks]` dependency into the local virtual environment.
 - `rag_search_dev.ps1 -LogMlflow` runs the same retrieval brief workflow and then logs params, metric `retrieved_chunks` and artifacts to the configured MLflow experiment.
+- `rag_search_dev.ps1 -GenerateAnswer -LogMlflow` also logs the LLM endpoint, generated answer length, generation JSON and answer markdown.
 - Tracking target: `MLFLOW_TRACKING_URI` when set, otherwise `databricks://<DATABRICKS_PROFILE>`.
 
-This is starter MLflow Tracking. It is not full MLflow GenAI tracing yet because no LLM call exists in the workflow.
+This is starter MLflow Tracking plus manual tracing for retrieval and LLM generation. Full evaluator-based GenAI quality scoring is still a separate hardening step.
 
 Trace and evaluate when generated answers exist:
 
@@ -385,5 +403,6 @@ Advanced capabilities must enhance the assessment while keeping the first-run Da
 - Databricks Vector Search query options: https://docs.databricks.com/aws/en/vector-search/query-vector-search
 - Databricks Vector Search CLI: https://docs.databricks.com/aws/en/dev-tools/cli/reference/vector-search-indexes-commands
 - Databricks Vector Search cost management: https://docs.databricks.com/aws/en/vector-search/vector-search-cost-management
+- Databricks Foundation Model APIs: https://docs.databricks.com/aws/en/machine-learning/foundation-model-apis/
 - Databricks MLflow Tracing for GenAI: https://docs.databricks.com/aws/en/mlflow3/genai/tracing/
 - Databricks MLflow GenAI evaluation: https://docs.databricks.com/aws/en/mlflow3/genai/eval-monitor/concepts/eval-harness
