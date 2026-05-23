@@ -220,6 +220,18 @@ On Windows PowerShell:
 powershell -ExecutionPolicy Bypass -File .\scripts\check_sqlserver_fixture.ps1
 ```
 
+Inspect objects and sample rows without SSMS:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_sqlserver_fixture.ps1
+```
+
+Run an ad hoc query:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_sqlserver_fixture.ps1 -Query "SELECT TOP (10) * FROM mart.FactOrders"
+```
+
 Export inventory metadata:
 
 ```bash
@@ -363,6 +375,33 @@ bash scripts/run_semantic_index_prep_dev.sh
 ```
 
 This writes `gold.semantic_legacy_documents` with primary key `chunk_id` and text column `chunk_text`. The table has Delta Change Data Feed enabled so it can become the source for a Vector Search Delta Sync index.
+
+Create and query the Vector Search endpoint and Delta Sync index:
+
+```bash
+bash scripts/create_vector_search_dev.sh
+bash scripts/query_vector_search_dev.sh "Which high risk assets should be migrated first?"
+```
+
+PowerShell equivalent:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\create_vector_search_dev.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk assets should be migrated first?"
+```
+
+Default dev settings:
+
+- endpoint: `mma-vector-search-dev`
+- endpoint type: `STANDARD`
+- source table: `migration_accelerator_dev.gold.semantic_legacy_documents`
+- index: `migration_accelerator_dev.gold.semantic_legacy_documents_vs`
+- primary key: `chunk_id`
+- embedding source column: `chunk_text`
+- embedding endpoint: `databricks-qwen3-embedding-0-6b`
+- sync mode: `TRIGGERED`
+
+The query scripts call the Vector Search REST endpoint through `databricks api post` because the current CLI wrapper can print an unmarshalling error even when the API returns valid results.
 
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
 

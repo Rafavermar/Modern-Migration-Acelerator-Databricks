@@ -36,6 +36,24 @@ Windows:
 powershell -ExecutionPolicy Bypass -File .\scripts\check_sqlserver_fixture.ps1
 ```
 
+Inspect SQL Server objects and sample rows without installing SSMS:
+
+```bash
+bash scripts/query_sqlserver_fixture.sh
+```
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_sqlserver_fixture.ps1
+```
+
+Run an ad hoc query:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_sqlserver_fixture.ps1 -Query "SELECT TOP (10) * FROM mart.FactOrders"
+```
+
 This starts `mcr.microsoft.com/mssql/server:2022-latest`, creates the `LegacySales` database and seeds:
 
 - `dbo.CustomerOrders`

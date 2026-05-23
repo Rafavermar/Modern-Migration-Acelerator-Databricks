@@ -137,6 +137,15 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
 ```
 
+To activate semantic search after `gold.semantic_legacy_documents` exists:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\create_vector_search_dev.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which assets should be migrated first?"
+```
+
+The dev index uses `chunk_id` as primary key, `chunk_text` as the embedding source, `databricks-qwen3-embedding-0-6b` as the embedding endpoint and `TRIGGERED` sync mode.
+
 ## What the customer provides
 
 For ADF:

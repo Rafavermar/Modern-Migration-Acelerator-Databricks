@@ -95,6 +95,8 @@ Current base:
 - `chunk_id` is the primary key.
 - `chunk_text` is the text column to embed.
 - Delta Change Data Feed is enabled on the table.
+- `scripts/create_vector_search_dev.sh` creates a dev Vector Search endpoint and Delta Sync index.
+- `scripts/query_vector_search_dev.sh` runs a starter semantic search.
 
 Purpose:
 
@@ -126,10 +128,30 @@ Activation steps:
 
 1. Confirm which artifacts can be indexed.
 2. Run `bash scripts/run_semantic_index_prep_dev.sh`.
-3. Select the embedding model endpoint.
-4. Create the Vector Search endpoint.
-5. Create a Delta Sync index over `gold.semantic_legacy_documents`.
-6. Add a search notebook or API utility.
+3. Use embedding endpoint `databricks-qwen3-embedding-0-6b` for dev unless the customer mandates another model.
+4. Run `bash scripts/create_vector_search_dev.sh`.
+5. Query with `bash scripts/query_vector_search_dev.sh "<question>"`.
+6. Add a search notebook, API utility or RAG workflow after the retrieval behavior is useful.
+
+Dev Vector Search configuration:
+
+- endpoint: `mma-vector-search-dev`
+- endpoint type: `STANDARD`
+- source table: `migration_accelerator_dev.gold.semantic_legacy_documents`
+- index: `migration_accelerator_dev.gold.semantic_legacy_documents_vs`
+- index type: `DELTA_SYNC`
+- index subtype: `HYBRID`
+- sync mode: `TRIGGERED`
+- primary key: `chunk_id`
+- embedding source column: `chunk_text`
+- embedding endpoint: `databricks-qwen3-embedding-0-6b`
+
+Operational notes:
+
+- First provisioning can take several minutes.
+- The dev script waits for `ready=true` before querying.
+- Query scripts call the Vector Search REST endpoint through `databricks api post` to avoid a current CLI wrapper parsing issue.
+- For production, review endpoint type, sync mode, model endpoint, usage policy and service principal authentication.
 
 Pause implementation if:
 

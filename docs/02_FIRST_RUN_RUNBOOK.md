@@ -154,7 +154,49 @@ Expected output:
 
 This table contains sanitized chunks from source artifacts and generated accelerator outputs. It is the Delta source for Databricks Vector Search. The primary key is `chunk_id`; the text column is `chunk_text`.
 
-## 9. Publish to Neo4j
+## 9. Create Vector Search index
+
+Create the endpoint and Delta Sync index:
+
+```bash
+bash scripts/create_vector_search_dev.sh
+```
+
+PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\create_vector_search_dev.ps1
+```
+
+Default dev configuration:
+
+- endpoint: `mma-vector-search-dev`
+- endpoint type: `STANDARD`
+- source table: `migration_accelerator_dev.gold.semantic_legacy_documents`
+- index: `migration_accelerator_dev.gold.semantic_legacy_documents_vs`
+- primary key: `chunk_id`
+- embedding source column: `chunk_text`
+- embedding endpoint: `databricks-qwen3-embedding-0-6b`
+- index subtype: `HYBRID`
+- sync mode: `TRIGGERED`
+
+Query the index:
+
+```bash
+bash scripts/query_vector_search_dev.sh "Which high risk legacy assets should be migrated first?"
+```
+
+PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk legacy assets should be migrated first?"
+```
+
+This step uses Databricks Vector Search and the embedding model endpoint, so it can consume trial credits. Use `TRIGGERED` sync for controlled dev cost.
+
+The script waits until the index reports `ready=true`, then triggers sync. A first index build can take several minutes because Databricks provisions endpoint and pipeline resources. A successful dev run should show `indexed_row_count` equal to the number of semantic chunks, currently `309` for the demo plus SQL Server export.
+
+## 10. Publish to Neo4j
 
 Check AuraDB connectivity:
 
@@ -200,7 +242,7 @@ RETURN path
 LIMIT 25;
 ```
 
-## 10. Move from sample metadata to customer metadata
+## 11. Move from sample metadata to customer metadata
 
 Create or select a governed landing volume:
 
@@ -238,6 +280,7 @@ bash scripts/deploy_dev.sh
 bash scripts/run_accelerator_dev.sh
 bash scripts/run_target_demo_dev.sh
 bash scripts/run_semantic_index_prep_dev.sh
+bash scripts/create_vector_search_dev.sh
 ```
 
 Then publish graph exploration from the same normalized model:
@@ -247,7 +290,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
 ```
 
-## 11. Known first-run fixes
+## 12. Known first-run fixes
 
 Issue: `OSError: [Errno 5] Input/output error` while reading files under `/Workspace/Users/.../.bundle/.../files/samples/legacy_metadata`.
 
@@ -273,7 +316,19 @@ Cause: serverless task startup can hit transient Workspace Files reads.
 
 Fix: the jobs execute runtime Python scripts from the Unity Catalog volume instead of `/Workspace/.../.bundle/.../files`.
 
-## 12. Decide next phase
+Issue: `databricks vector-search-indexes query-index` returns an unmarshalling error even when the REST API returns `200 OK`.
+
+Cause: CLI wrapper issue in the current Databricks CLI build.
+
+Fix: query scripts use `databricks api post /api/2.0/vector-search/indexes/<index>/query` with the same request body.
+
+Issue: `databricks api post /api/...` returns `Not Found` from Git Bash on Windows.
+
+Cause: Git Bash path conversion rewrites `/api/...` as a Windows path.
+
+Fix: Vector Search Bash scripts export `MSYS_NO_PATHCONV=1` and `MSYS2_ARG_CONV_EXCL=*`.
+
+## 13. Decide next phase
 
 After the first successful customer metadata run:
 
