@@ -198,6 +198,15 @@ def as_int(value: Any) -> int | None:
         return None
 
 
+def classify_inventory_source(source_system: str, technology: str) -> tuple[str, str]:
+    value = f"{source_system} {technology}".lower()
+    if any(token in value for token in ("sql_server", "sqlserver", "sql server", "mssql")):
+        return "sqlserver", "SQL Server"
+    if "synapse" in value:
+        return "synapse", "Azure"
+    return normalize_asset_type(source_system) or "legacy_inventory", "Legacy"
+
+
 def add_asset(assets: dict[str, dict[str, Any]], row: dict[str, Any]) -> None:
     existing = assets.get(row["asset_id"])
     if existing is None:
@@ -817,6 +826,7 @@ def parse_synapse_csv(
 
         source_system = normalized.get("source_system") or "azure_synapse"
         technology = normalized.get("engine") or normalized.get("technology") or "Azure Synapse Analytics"
+        asset_prefix, platform = classify_inventory_source(source_system, technology)
         asset_id = stable_id(source_system, object_type, object_name)
         add_asset(
             assets,
@@ -824,9 +834,9 @@ def parse_synapse_csv(
                 "run_id": run_id,
                 "asset_id": asset_id,
                 "source_system": source_system,
-                "asset_type": f"synapse_{object_type}",
+                "asset_type": f"{asset_prefix}_{object_type}",
                 "asset_name": object_name,
-                "platform": "Azure",
+                "platform": platform,
                 "technology": technology,
                 "raw_path": document.path,
                 "owner": normalized.get("owner"),
@@ -848,9 +858,9 @@ def parse_synapse_csv(
                     "run_id": run_id,
                     "asset_id": dependency_id,
                     "source_system": source_system,
-                    "asset_type": "synapse_dependency_reference",
+                    "asset_type": f"{asset_prefix}_dependency_reference",
                     "asset_name": dependency_name,
-                    "platform": "Azure",
+                    "platform": platform,
                     "technology": "Dependency reference",
                     "raw_path": document.path,
                     "owner": None,
@@ -1134,7 +1144,7 @@ def build_risk_register(
             score += 10
             factors.append("large data volume")
 
-        if asset["asset_type"] in {"adf_pipeline", "sql_script", "synapse_notebook"}:
+        if asset["asset_type"] in {"adf_pipeline", "sql_script", "synapse_notebook", "sqlserver_stored_procedure"}:
             score += 10
             factors.append("requires orchestration or code migration")
         if asset["asset_type"] in {"adf_linked_service", "adf_dataset"}:
@@ -1184,6 +1194,8 @@ def build_blueprint(
             "synapse_notebook_reference",
             "synapse_table",
             "synapse_view",
+            "sqlserver_table",
+            "sqlserver_view",
             "sql_referenced_object",
         }:
             target_pattern = "Unity Catalog Delta table"
@@ -1259,6 +1271,13 @@ def build_blueprint(
                 "Refactor platform-specific T-SQL functions.",
                 "Validate dependencies against Unity Catalog objects.",
             ]
+        elif asset_type == "sqlserver_stored_procedure":
+            target_pattern = "Databricks SQL, PySpark transformation or Lakeflow task"
+            target_schema = "workflows"
+            notes = [
+                "Review procedural T-SQL and split orchestration from transformations.",
+                "Convert reusable data logic into Databricks SQL or PySpark.",
+            ]
         else:
             target_pattern = "Migration support asset"
             target_schema = "bronze"
@@ -1295,6 +1314,8 @@ def build_data_quality_plan(
             "synapse_notebook_reference",
             "synapse_table",
             "synapse_view",
+            "sqlserver_table",
+            "sqlserver_view",
             "sql_referenced_object",
         }:
             checks = [

@@ -50,6 +50,8 @@ The export is written to:
 local_outputs/legacy_metadata/sqlserver_inventory.csv
 ```
 
+When `LEGACY_METADATA_SOURCE_ROOT` is empty, `scripts/run_accelerator_dev.sh` uploads this folder into the demo metadata volume together with `samples/legacy_metadata`.
+
 You can later point the accelerator to that folder with:
 
 ```bash
