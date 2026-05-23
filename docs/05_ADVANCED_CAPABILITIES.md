@@ -1,21 +1,21 @@
 # Advanced Capabilities
 
-The MVP must remain deterministic and useful without Vector Search, GenAI, MLflow, Model Serving or Neo4j.
+The first Databricks run must produce trusted Delta outputs. Neo4j, Vector Search, RAG, MLflow and Model Serving then build on those outputs.
 
-These capabilities should be added only after the first Databricks run produces trusted Delta outputs.
+These capabilities are part of the full solution, but they require the Full Trial workspace, AuraDB credentials, security approval and customer decisions before activation.
 
 ## Phase Order
 
-1. MVP metadata assessment.
-2. Neo4j graph exploration, optional.
+1. Databricks metadata assessment.
+2. Neo4j graph exploration.
 3. Vector Search and semantic legacy search.
 4. RAG over legacy artifacts and generated blueprints.
 5. MLflow tracing and evaluation for GenAI behavior.
-6. Model Serving or agent endpoints, only if users need an interactive assistant.
+6. Model Serving or agent endpoints for interactive assistant workflows.
 
 ## Readiness Gate
 
-Do not start advanced phases until:
+Do not activate these layers until:
 
 - `silver.assets` is trusted.
 - `silver.dependencies` is trusted.
@@ -24,8 +24,8 @@ Do not start advanced phases until:
 - `gold.graph_edges` is useful.
 - `gold.risk_register` is reviewable.
 - `gold.target_databricks_blueprint` is reviewable.
-- Customer security approves indexing legacy documents.
-- A retention and access policy exists for indexed content.
+- Customer security approves graph publishing and indexing legacy documents.
+- A retention and access policy exists for graph and indexed content.
 
 ## Neo4j
 
@@ -79,15 +79,15 @@ Inputs:
 - `gold.data_quality_plan`
 - External legacy documentation and notebooks
 
-Future outputs:
+Outputs:
 
 - Chunked legacy artifact Delta table.
 - Embedding-ready document view.
 - Databricks Vector Search index.
 - Search notebook or API utility.
-- Optional RAG prompt template.
+- RAG prompt template.
 
-Do not implement if:
+Pause implementation if:
 
 - The customer forbids indexing source code or documentation.
 - Metadata is too incomplete to produce useful search.
@@ -96,7 +96,7 @@ Do not implement if:
 
 ## MLflow
 
-Use MLflow only if the accelerator introduces GenAI behavior.
+Use MLflow when the accelerator introduces GenAI behavior or generated recommendations.
 
 Track:
 
@@ -108,7 +108,7 @@ Track:
 - Trace spans for RAG or agent workflows.
 - Quality metrics such as groundedness, correctness and completeness.
 
-Do not implement if:
+Pause implementation if:
 
 - The accelerator remains deterministic.
 - Recommendations are generated only by rules and Delta transforms.
@@ -117,9 +117,9 @@ Do not implement if:
 
 ## Model Serving
 
-Use Model Serving only if users need an interactive assistant or recommendation endpoint.
+Use Model Serving when users need an interactive assistant or recommendation endpoint.
 
-Do not use it for the batch MVP. Databricks jobs and Delta outputs are enough for first-run assessment.
+Keep batch assessment in Databricks jobs and Delta outputs. Serving is for interactive workflows.
 
 ## Stop Conditions
 
@@ -133,4 +133,4 @@ Stop advanced work if:
 
 ## Product Principle
 
-Advanced features should enhance the assessment. They should not become mandatory dependencies for running the accelerator.
+Advanced capabilities must enhance the assessment while keeping the first-run Databricks path reliable and repeatable.

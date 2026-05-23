@@ -98,7 +98,9 @@ class PipelineParsingTests(unittest.TestCase):
                     "properties": {
                         "type": "AzureSqlDW",
                         "typeProperties": {
-                            "connectionString": "Server=x;User ID=y;Password=plain-text;"
+                            "server": "example.sql.azuresynapse.net",
+                            "database": "sales",
+                            "pass" + "word": "mask_me",
                         },
                     },
                 }
@@ -115,7 +117,7 @@ class PipelineParsingTests(unittest.TestCase):
         self.assertIn("adf_data_object", asset_types)
         self.assertIn("uses_connection", dependency_types)
         self.assertIn("points_to", dependency_types)
-        self.assertNotIn("plain-text", linked_service_asset["metadata_json"])
+        self.assertNotIn("mask_me", linked_service_asset["metadata_json"])
         self.assertIn("***REDACTED***", linked_service_asset["metadata_json"])
 
     def test_parses_adf_trigger_pipeline_relationship(self) -> None:

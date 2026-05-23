@@ -1,10 +1,10 @@
 # Modern Migration Accelerator for Databricks
 
-MVP scaffold for a Databricks-based data engineering and migration analysis accelerator.
+Plug-and-play migration assessment accelerator for Databricks modernization.
 
-The MVP parses legacy metadata, normalizes assets, builds a dependency graph, generates migration risk outputs, produces Databricks target blueprints and writes Delta tables in Databricks.
+The solution parses legacy metadata, normalizes assets, builds a dependency graph, generates migration risk outputs, produces Databricks target blueprints and writes Delta tables in Databricks.
 
-## MVP scope
+## Solution scope
 
 Included now:
 
@@ -12,19 +12,20 @@ Included now:
 - Manual validation, deployment and run scripts.
 - Sample legacy metadata for a first Databricks run.
 - Local SQL Server Docker fixture for repeatable legacy metadata extraction tests.
-- Python/Spark pipeline with no mandatory MLflow, Vector Search, GenAI or Neo4j dependency.
+- Python/Spark pipeline for metadata normalization, graph-ready Delta outputs and gold assessment outputs.
 - Delta outputs for bronze, silver, gold and control layers.
 
-Deferred from the first deterministic build, but still planned for the full product:
+Full solution technologies:
 
+- Databricks Workflows and Delta tables for the assessment backbone.
+- Neo4j AuraDB for graph exploration and impact analysis.
 - Databricks Vector Search.
 - RAG over legacy artifacts and generated blueprints.
 - MLflow Tracking or MLflow Tracing.
 - Databricks Model Serving.
-- GitHub Actions, Azure DevOps or Jenkins automation.
-- Neo4j runtime integration.
+- Enterprise CI/CD integration through the customer standard toolchain.
 
-Those capabilities are intentionally staged so the core accelerator is built and tested step by step.
+The first deploy validates the Databricks assessment backbone. Neo4j, Vector Search and MLflow are activated as soon as the Full Trial workspace and AuraDB credentials are available.
 
 ## Outputs
 
@@ -97,11 +98,13 @@ DATABRICKS_CATALOG=migration_accelerator_dev
 
 Do not commit `.env`; it is ignored by Git.
 
+Keep credentials out of committed sample files. Use `.env`, Databricks secrets, Unity Catalog connections or customer secret managers for real values.
+
 ## Current local-only workflow
 
 The Databricks CLI currently points to Databricks Free Edition, so do not deploy the bundle yet.
 
-Use the local checks while the Full Trial and Neo4j accounts are not ready:
+Use the local checks while the Full Trial and Neo4j AuraDB accounts are being created:
 
 ```bash
 bash scripts/local_smoke_test.sh
@@ -212,20 +215,20 @@ Supported MVP file types are `.json` for ADF-like exports, `.csv` for Synapse in
 
 ## Neo4j timing
 
-Neo4j connection information is not needed for the MVP.
+Create **Neo4j AuraDB Professional - Free trial** for the first graph integration test.
 
-Provide Neo4j details only when we add the optional external graph extension after the Delta dependency graph is working. At that point the needed information will be:
+Use the Databricks gold graph outputs first, then connect AuraDB. At that point the needed information will be:
 
 - Neo4j URI.
 - Database name.
 - Authentication method and secret location.
 - TLS requirement.
 - Network access path from Databricks to Neo4j.
-- Decision on read-only graph export versus bidirectional sync.
+- Decision on read-only graph publishing versus bidirectional sync.
 
-For now, the dependency graph is stored in `silver.dependencies` and consumed by `gold.risk_register`.
+The dependency graph is stored in `silver.dependencies` and exposed for users in `gold.graph_edges`.
 
-The Neo4j extension plan is documented in `docs/05_ADVANCED_CAPABILITIES.md`.
+The Neo4j integration plan is documented in `docs/05_ADVANCED_CAPABILITIES.md`.
 
 ## Manual Databricks commands
 

@@ -5,7 +5,7 @@
     "type": "AzureBlobFS",
     "typeProperties": {
       "url": "https://storage.dfs.core.windows.net",
-      "accountKey": "do-not-store"
+      "authenticationType": "ManagedIdentity"
     }
   }
 }

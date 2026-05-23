@@ -13,6 +13,9 @@ Use it to:
 - Build a graph-ready Delta model.
 - Generate risk, target blueprint and data quality planning outputs.
 - Help decide the migration execution pattern per source.
+- Publish graph-ready outputs to Neo4j.
+- Add semantic discovery and RAG with Databricks Vector Search.
+- Add MLflow tracing and evaluation when generated recommendations are introduced.
 
 Do not use it as the system of record for enterprise governance, security classification or production lineage.
 
@@ -74,7 +77,6 @@ Use it as a focused migration workbench that consumes or exports metadata.
 - Not an automated code conversion engine.
 - Not a high-volume ingestion framework.
 - Not a production scheduler beyond the Databricks jobs it defines.
-- Not a semantic search, RAG or GenAI assistant in the MVP.
 - Accuracy depends on metadata export completeness.
 
 ## Use It When
@@ -121,20 +123,21 @@ For most modernization programs, use this order:
 4. Register external tables or volumes where data already lives in governed cloud storage.
 5. Use Unity Catalog lineage for workloads after they run in Databricks.
 6. Integrate with Purview or another catalog if enterprise governance requires it.
-7. Add Vector Search, RAG, MLflow or Model Serving only after deterministic outputs are trusted.
+7. Activate Neo4j, Vector Search, RAG, MLflow and Model Serving after deterministic outputs are trusted.
 
 ## Advanced Capabilities
 
-Vector Search and MLflow can make the product stronger, but they should not be used to justify the MVP.
+Neo4j, Vector Search and MLflow are part of the full solution.
 
-Add them when there is a clear workflow:
+Activate them when there is a clear workflow:
 
+- Graph exploration and impact analysis.
 - Semantic search across legacy assets.
 - "Ask your legacy platform" RAG.
 - LLM-assisted blueprint generation.
 - Prompt, trace or recommendation evaluation.
 
-Do not add them just because the platform supports them.
+Do not activate them before credentials, permissions, security review and first Databricks outputs are ready.
 
 ## Bottom Line
 
