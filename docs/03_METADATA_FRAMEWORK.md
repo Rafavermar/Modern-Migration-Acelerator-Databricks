@@ -95,6 +95,18 @@ They live mainly in:
 
 Future extractor improvements do not mean changing the product architecture. They mean teaching the accelerator to understand more customer-specific artifact shapes while still writing the same `silver` and `gold` outputs.
 
+## What is needed to improve extractors
+
+Ask the customer for representative metadata samples, not production data dumps:
+
+- 3-5 redacted examples per source pattern: ADF pipeline, dataset, linked service, trigger, Synapse notebook, SQL script, SQL Server procedure, external table.
+- The expected dependency interpretation for those examples.
+- Known edge cases: parameterized paths, dynamic SQL, stored procedures, custom orchestration frameworks, naming conventions.
+- Existing catalog or lineage exports when available, such as Purview, Synapse inventory or SQL dependency extracts.
+- A small validation set: assets and dependencies the customer expects the accelerator to find.
+
+Stable formats with examples are usually low to moderate effort. Runtime-only dependencies, dynamic strings, missing exports or custom frameworks require more discovery and may need customer-specific extractor rules.
+
 ## Deliberate non-goals
 
 The accelerator does not try to replace enterprise catalogs, scanners or lineage platforms. It creates a lightweight, Databricks-native metadata layer that can be enriched by source-specific extractors, exported to Neo4j and indexed for semantic search.

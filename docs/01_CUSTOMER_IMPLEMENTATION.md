@@ -148,6 +148,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question 
 
 The dev index uses `chunk_id` as primary key, `chunk_text` as the embedding source, `databricks-qwen3-embedding-0-6b` as the embedding endpoint and `TRIGGERED` sync mode.
 
+For managed embeddings, Databricks uses the same configured embedding endpoint for indexed text and `query_text`. If a customer later provides their own vectors, they must keep the same model, dimensions and preprocessing for both indexing and querying.
+
 ## What the customer provides
 
 For ADF:
@@ -179,6 +181,13 @@ For the data lake:
 - File formats and partition conventions.
 - External table locations already used by Synapse serverless.
 - Security model and ownership boundaries.
+
+For extractor improvements:
+
+- Representative redacted artifacts for each source pattern.
+- Expected lineage/dependency outcomes for those artifacts.
+- Known dynamic patterns that static parsing might miss.
+- Any existing catalog, lineage or dependency exports.
 
 ## SQL Server in this repository
 

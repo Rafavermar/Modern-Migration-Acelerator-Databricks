@@ -201,8 +201,9 @@ How it is implemented:
 
 Metric and model alignment:
 
+- HNSW is the ANN index/search algorithm. L2 distance is the vector distance used by Databricks Vector Search. They are not claims about how the embedding model was trained.
 - In this dev index, metric selection is not a repo parameter. Databricks Vector Search uses HNSW with L2 distance for ANN retrieval.
-- Because this is a managed Delta Sync index, Databricks embeds `chunk_text` and embeds `query_text` with the same configured endpoint: `databricks-qwen3-embedding-0-6b`.
+- We ensure model/query consistency by using managed embeddings: Databricks embeds `chunk_text` and embeds `query_text` with the same configured endpoint, `databricks-qwen3-embedding-0-6b`.
 - If a customer switches to self-managed embeddings or `query_vector`, the indexed vectors and query vectors must come from the same embedding model, same dimensions and same preprocessing.
 - If the customer expects cosine-style similarity with self-managed vectors, normalize vectors before indexing and querying; normalized vectors make L2 ranking equivalent to cosine ranking.
 - `HYBRID` search adds keyword/full-text matching and merges it with ANN ranking. Use it when questions include asset names, table names, technical terms or platform-specific jargon.
