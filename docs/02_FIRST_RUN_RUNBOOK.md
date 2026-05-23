@@ -196,6 +196,15 @@ This step uses Databricks Vector Search and the embedding model endpoint, so it 
 
 The script waits until the index reports `ready=true`, then triggers sync. A first index build can take several minutes because Databricks provisions endpoint and pipeline resources. A successful dev run should show `indexed_row_count` equal to the number of semantic chunks, currently `309` for the demo plus SQL Server export.
 
+Where to see it:
+
+- `Catalog` > `migration_accelerator_dev` > `gold` > `semantic_legacy_documents`: source Delta table.
+- `Catalog` search `semantic_legacy_documents_vs`: managed Vector Search index.
+- Vector index page > `Overview` > `Data Ingest`: sync status and `Sync now`.
+- CLI/API: `databricks --profile <profile> vector-search-endpoints get-endpoint mma-vector-search-dev`.
+
+It is normal that `mma-vector-search-dev` does not appear under `AI/ML > Serving`. Vector Search endpoints are not standard Model Serving endpoints. The embedding model endpoint is Databricks-managed and may appear under AI Gateway or foundation model areas depending on workspace UI and filters.
+
 ## 10. Publish to Neo4j
 
 Check AuraDB connectivity:

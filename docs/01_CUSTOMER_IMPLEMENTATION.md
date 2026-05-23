@@ -208,6 +208,80 @@ Use export-only discovery first unless the customer already has approved network
 
 The local Docker fixture is optional. A customer does not need Docker if they can provide SQL Server metadata exports.
 
+### Pattern 1: Export-only discovery
+
+Use when the customer wants the fastest and least invasive assessment.
+
+Technical flow:
+
+1. DBA reviews `samples/sqlserver/extract/metadata_inventory.sql`.
+2. DBA runs the query with read-only catalog permissions.
+3. Output is saved as CSV using the contract in `contracts/legacy_metadata_inventory.csv`.
+4. File is uploaded to:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
+```
+
+5. Set `LEGACY_METADATA_SOURCE_ROOT=/Volumes/<catalog>/landing/legacy_metadata`.
+6. Run the accelerator normally.
+
+This pattern does not require network connectivity from Databricks to SQL Server.
+
+### Pattern 2: Lakehouse Federation
+
+Use when Databricks must query SQL Server live for validation, reconciliation or read-only discovery.
+
+Prerequisites:
+
+- Unity Catalog enabled.
+- User has `CREATE CONNECTION` privilege or metastore admin support.
+- Network route from Databricks to SQL Server is approved.
+- Authentication mode is approved: basic auth, OAuth or OAuth machine-to-machine.
+- Credentials are stored in Databricks secrets or a customer-approved secret manager.
+
+UI path:
+
+1. Open `Catalog`.
+2. Click the add icon at the top of the Catalog pane.
+3. Select `Create a connection`.
+4. Choose connection type `SQL Server`.
+5. Create a foreign catalog that mirrors the SQL Server database.
+
+SQL shape:
+
+```sql
+CREATE CONNECTION mma_sqlserver_connection
+TYPE SQLSERVER
+OPTIONS (
+  host '<sql-server-host>',
+  port '1433',
+  user secret('<scope>', '<user-key>'),
+  password secret('<scope>', '<password-key>')
+);
+
+CREATE FOREIGN CATALOG legacy_sqlserver
+USING CONNECTION mma_sqlserver_connection
+OPTIONS (database '<database-name>');
+```
+
+After the foreign catalog exists, the accelerator can use metadata exported from that catalog, or a customer-specific extractor can query `legacy_sqlserver.<schema>.<table>` for validation.
+
+Do not use federation as the first choice if the only need is static migration assessment and the customer can provide exports.
+
+### Pattern 3: Connector-based ingestion
+
+Use when the migration plan requires Databricks-owned Delta copies of source tables.
+
+Technical flow:
+
+1. Use the accelerator outputs to decide which SQL Server tables need ingestion.
+2. Configure customer-approved ingestion, such as Lakeflow Connect or another approved connector pattern.
+3. Store raw or bronze ingested data in managed Delta tables.
+4. Keep the accelerator metadata landing separate from production data ingestion.
+
+This is migration execution, not just assessment. It should follow customer data movement, retention and cost policies.
+
 ## Data lake and Synapse external tables
 
 Synapse serverless external tables usually point to files already stored in a lake. The accelerator should capture both sides:
@@ -289,3 +363,9 @@ Before real source connectivity:
 - Secrets strategy agreed.
 - Network path from Databricks to source approved, if direct connectivity is required.
 - Decision made per source: export-only discovery, federation, connector-based ingestion or custom extraction.
+
+## Official References
+
+- Databricks SQL Server Lakehouse Federation: https://docs.databricks.com/aws/en/query-federation/sql-server
+- Databricks connections: https://docs.databricks.com/aws/en/query-federation/connections
+- `CREATE CONNECTION`: https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-ddl-create-connection

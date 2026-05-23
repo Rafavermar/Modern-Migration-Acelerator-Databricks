@@ -89,6 +89,8 @@ LIMIT 25;
 
 ## Vector Search and RAG
 
+Vector Search is the semantic retrieval layer. It lets a user ask questions such as "which high-risk order assets should move first?" and retrieve the most relevant chunks from legacy artifacts, risk rows, blueprint rows, graph edges and DQ plans.
+
 Current base:
 
 - `scripts/run_semantic_index_prep_dev.sh` creates `gold.semantic_legacy_documents`.
@@ -97,6 +99,19 @@ Current base:
 - Delta Change Data Feed is enabled on the table.
 - `scripts/create_vector_search_dev.sh` creates a dev Vector Search endpoint and Delta Sync index.
 - `scripts/query_vector_search_dev.sh` runs a starter semantic search.
+
+Terminology:
+
+| Term | Meaning in this project |
+| --- | --- |
+| Semantic corpus | `gold.semantic_legacy_documents`, the Delta table of sanitized searchable chunks. |
+| Chunk | One row in `gold.semantic_legacy_documents`; each row has `chunk_id`, metadata and `chunk_text`. |
+| Embedding | Numeric representation of `chunk_text`, computed by the Databricks embedding endpoint. |
+| Embedding endpoint | `databricks-qwen3-embedding-0-6b`, the dev model endpoint that turns text into vectors. |
+| Vector Search endpoint | `mma-vector-search-dev`, the serving endpoint for vector index queries. It is not a normal Model Serving endpoint. |
+| Vector Search index | `migration_accelerator_dev.gold.semantic_legacy_documents_vs`, the Unity Catalog-managed searchable index. |
+| Delta Sync | Databricks keeps the index aligned with a Delta source table. Dev uses triggered sync. |
+| Hybrid search | Combines semantic vector retrieval with keyword matching. |
 
 Purpose:
 
@@ -146,12 +161,54 @@ Dev Vector Search configuration:
 - embedding source column: `chunk_text`
 - embedding endpoint: `databricks-qwen3-embedding-0-6b`
 
+How it is implemented:
+
+1. `run_semantic_index_prep.py` reads the latest successful accelerator run.
+2. It loads source artifacts from the configured metadata root.
+3. It sanitizes JSON and notebook content so sensitive keys are redacted before indexing.
+4. It chunks source artifacts and generated Delta outputs into `gold.semantic_legacy_documents`.
+5. It enables Delta Change Data Feed on that table.
+6. `create_vector_search_dev.*` creates `mma-vector-search-dev`.
+7. The script creates `migration_accelerator_dev.gold.semantic_legacy_documents_vs` as a `DELTA_SYNC` and `HYBRID` index.
+8. Databricks computes embeddings from `chunk_text` with `databricks-qwen3-embedding-0-6b`.
+9. The script waits until the index is ready and triggers sync.
+10. `query_vector_search_dev.*` queries the REST endpoint and returns relevant chunks with scores.
+
+How to use it:
+
+Use Git Bash for the `.sh` job runner on Windows:
+
+```powershell
+& 'C:\Program Files\Git\bin\bash.exe' scripts/run_semantic_index_prep_dev.sh
+```
+
+Create or sync the index:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\create_vector_search_dev.ps1
+```
+
+Query it:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk legacy assets should be migrated first?"
+```
+
+Where to see it in Databricks:
+
+- Source table: `Catalog` > `migration_accelerator_dev` > `gold` > `semantic_legacy_documents`.
+- Vector index: `Catalog` search for `semantic_legacy_documents_vs`, or browse `migration_accelerator_dev.gold`.
+- Sync status: open the vector index, then use the `Overview` and `Data Ingest` section.
+- Endpoint: verify with `databricks --profile <profile> vector-search-endpoints get-endpoint mma-vector-search-dev`.
+- Do not look for `mma-vector-search-dev` under `AI/ML > Serving`; Vector Search endpoints are managed separately from normal serving endpoints.
+
 Operational notes:
 
 - First provisioning can take several minutes.
 - The dev script waits for `ready=true` before querying.
 - Query scripts call the Vector Search REST endpoint through `databricks api post` to avoid a current CLI wrapper parsing issue.
 - For production, review endpoint type, sync mode, model endpoint, usage policy and service principal authentication.
+- In dev, `indexed_row_count=309` was validated after indexing the demo estate plus SQL Server export.
 
 Pause implementation if:
 
@@ -200,3 +257,9 @@ Stop advanced work if:
 ## Product Principle
 
 Advanced capabilities must enhance the assessment while keeping the first-run Databricks path reliable and repeatable.
+
+## Official References
+
+- Databricks Vector Search setup: https://docs.databricks.com/aws/en/vector-search/create-vector-search
+- Databricks Vector Search CLI: https://docs.databricks.com/aws/en/dev-tools/cli/reference/vector-search-indexes-commands
+- Databricks Vector Search cost management: https://docs.databricks.com/aws/en/vector-search/vector-search-cost-management

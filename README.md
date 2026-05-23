@@ -403,6 +403,8 @@ Default dev settings:
 
 The query scripts call the Vector Search REST endpoint through `databricks api post` because the current CLI wrapper can print an unmarshalling error even when the API returns valid results.
 
+In the Databricks UI, inspect the Vector Search index through `Catalog`, not `AI/ML > Serving`. Search for `semantic_legacy_documents_vs` or browse `migration_accelerator_dev.gold`. The Vector Search endpoint is managed separately from standard Model Serving endpoints.
+
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
 
 ## CI/CD readiness
