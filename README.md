@@ -420,6 +420,7 @@ This writes:
 The starter utility does retrieval and grounded summarization only. Add `-LogMlflow` after installing `pip install -e .[genai]` to log the run artifacts to the configured MLflow experiment.
 
 RAG/search itself is not a Databricks UI object yet. Vector Search is visible in `Catalog`; MLflow artifacts are visible in `Experiments` only when `-LogMlflow` is used.
+By default `-LogMlflow` writes to `databricks://<DATABRICKS_PROFILE>`. Override with `MLFLOW_TRACKING_URI` only when the customer uses a different tracking target.
 
 Risk and review priority are calculated by the accelerator from metadata such as asset type, dependencies, row counts and criticality. Customers improve scoring by providing richer metadata exports; they do not need to manually tag every artifact before the first run.
 

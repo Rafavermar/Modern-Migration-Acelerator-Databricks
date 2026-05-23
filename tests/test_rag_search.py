@@ -11,6 +11,8 @@ if str(SRC) not in sys.path:
 
 from modern_migration_accelerator.rag_search import (
     build_retrieval_brief,
+    configure_console_encoding,
+    default_mlflow_tracking_uri,
     parse_vector_search_rows,
 )
 
@@ -58,6 +60,12 @@ class RagSearchTests(unittest.TestCase):
         self.assertIn("FactOrders", brief)
         self.assertIn("gold.risk_register", brief)
         self.assertIn("grounded search brief", brief)
+
+    def test_default_mlflow_tracking_uri_uses_databricks_profile(self) -> None:
+        self.assertEqual(default_mlflow_tracking_uri("mma-fulltrial"), "databricks://mma-fulltrial")
+
+    def test_configure_console_encoding_is_safe(self) -> None:
+        configure_console_encoding()
 
 
 if __name__ == "__main__":

@@ -257,12 +257,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question 
 The MLflow run logs the query, retrieved chunk count and local artifacts to `MLFLOW_EXPERIMENT_NAME`. Full MLflow GenAI tracing and scorer-based evaluation should be added when an LLM-generated response is introduced.
 
 `setup_dev_env.ps1 -InstallGenAiDeps` only installs optional MLflow dependencies. `-LogMlflow` performs the same RAG/search query and then records the run and artifacts in Databricks MLflow.
+The script uses `MLFLOW_TRACKING_URI` if set; otherwise it uses `databricks://<DATABRICKS_PROFILE>`.
 
 Where to see it:
 
 - Without `-LogMlflow`: outputs are local files under `local_outputs/rag/`.
 - With `-LogMlflow`: open Databricks `Experiments`, then the experiment from `MLFLOW_EXPERIMENT_NAME`.
+- The command also prints direct `View run` and `View experiment` links; use those links for validation and screenshots.
 - Full GenAI traces and evaluation runs appear later, after an LLM-backed workflow is instrumented.
+
+If `Experiments` is empty after `-LogMlflow`, check the script output for `MLflow tracking URI`. It should be `databricks://mma-fulltrial` or the customer profile, not a local `mlruns` path.
+Also clear UI filters and search for `modern-migration-accelerator`.
 
 ## 11. Publish to Neo4j
 
@@ -395,6 +400,12 @@ Issue: `databricks api post /api/...` returns `Not Found` from Git Bash on Windo
 Cause: Git Bash path conversion rewrites `/api/...` as a Windows path.
 
 Fix: Vector Search Bash scripts export `MSYS_NO_PATHCONV=1` and `MSYS2_ARG_CONV_EXCL=*`.
+
+Issue: `UnicodeEncodeError` after `rag_search_dev.ps1 -LogMlflow` on Windows.
+
+Cause: MLflow prints a Unicode run URL marker that can fail in legacy PowerShell encodings.
+
+Fix: the RAG/search Python entrypoint configures stdout/stderr as UTF-8 before logging to MLflow.
 
 ## 14. Decide next phase
 

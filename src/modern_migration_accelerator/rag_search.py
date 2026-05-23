@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -33,11 +34,18 @@ class SearchConfig:
     profile: str
     output_dir: Path
     experiment_name: str
+    mlflow_tracking_uri: str
     log_mlflow: bool
 
 
 def utc_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def configure_console_encoding() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
 
 
 def load_dotenv(path: Path) -> None:
@@ -61,6 +69,15 @@ def default_index_name() -> str:
         "DATABRICKS_VECTOR_SEARCH_INDEX",
         f"{catalog}.gold.semantic_legacy_documents_vs",
     )
+
+
+def default_mlflow_tracking_uri(profile: str) -> str:
+    explicit_uri = os.environ.get("MLFLOW_TRACKING_URI", "").strip()
+    if explicit_uri:
+        return explicit_uri
+    if profile:
+        return f"databricks://{profile}"
+    return "databricks"
 
 
 def databricks_command(profile: str) -> list[str]:
@@ -302,6 +319,7 @@ def log_to_mlflow(
             "Install with: pip install -e .[genai]"
         ) from exc
 
+    mlflow.set_tracking_uri(config.mlflow_tracking_uri)
     if config.experiment_name:
         mlflow.set_experiment(config.experiment_name)
 
@@ -328,6 +346,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_console_encoding()
     load_dotenv(Path(".env"))
     args = parse_args(argv)
     profile = args.profile or os.environ.get("DATABRICKS_PROFILE", "")
@@ -340,6 +359,7 @@ def main(argv: list[str] | None = None) -> int:
         profile=profile,
         output_dir=Path(args.output_dir),
         experiment_name=experiment_name,
+        mlflow_tracking_uri=default_mlflow_tracking_uri(profile),
         log_mlflow=args.log_mlflow,
     )
 
@@ -363,6 +383,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Trace JSON: {trace_path}")
     if config.log_mlflow:
         print(f"MLflow experiment: {config.experiment_name}")
+        print(f"MLflow tracking URI: {config.mlflow_tracking_uri}")
     return 0
 
 

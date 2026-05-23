@@ -28,3 +28,6 @@ Thumbs.db
 *.log
 tmp/
 local_outputs/
+mlruns/
+mlartifacts/
+mlflow.db

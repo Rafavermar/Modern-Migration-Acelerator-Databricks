@@ -317,6 +317,7 @@ What the two MLflow commands do:
 
 - `setup_dev_env.ps1 -InstallGenAiDeps` installs the optional `mlflow[databricks]` dependency into the local virtual environment.
 - `rag_search_dev.ps1 -LogMlflow` runs the same retrieval brief workflow and then logs params, metric `retrieved_chunks` and artifacts to the configured MLflow experiment.
+- Tracking target: `MLFLOW_TRACKING_URI` when set, otherwise `databricks://<DATABRICKS_PROFILE>`.
 
 This is starter MLflow Tracking. It is not full MLflow GenAI tracing yet because no LLM call exists in the workflow.
 
@@ -341,12 +342,14 @@ Minimal evaluation path:
 Where to see it in Databricks:
 
 - `Experiments` for MLflow runs and artifacts.
+- The script prints direct Databricks links for the run and experiment.
 - Evaluation runs after `mlflow.genai.evaluate()` is introduced.
 - Traces once the RAG function or assistant endpoint is instrumented.
 
 Current UI state:
 
 - `scripts/rag_search_dev.ps1 -LogMlflow` creates a standard MLflow run with artifacts.
+- The expected tracking URI in dev is `databricks://mma-fulltrial`.
 - Full GenAI trace spans and evaluation runs are not created yet; they start when the workflow calls an LLM and is instrumented with MLflow GenAI tracing.
 
 Pause implementation if:
