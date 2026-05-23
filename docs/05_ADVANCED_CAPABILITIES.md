@@ -35,12 +35,19 @@ Purpose:
 - Publish `silver.assets`, `silver.dependencies` and `gold.graph_edges` to a graph database.
 - Keep Delta as the source of truth.
 
-Needed later:
+Needed:
 
 - Neo4j URI and database name.
 - Authentication method and secret location.
 - TLS and network path from Databricks.
 - Export mode: read-only graph publishing or bidirectional sync.
+
+Local trial settings:
+
+- AuraDB Professional Trial.
+- 4GB memory when vector optimization is enabled.
+- `neo4j+s://` URI.
+- Password stored only in `.env` locally and later in Databricks secrets.
 
 Initial labels:
 

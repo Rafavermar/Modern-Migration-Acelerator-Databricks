@@ -69,6 +69,10 @@ else {
     Write-Host "OK: DATABRICKS_PROFILE=$env:DATABRICKS_PROFILE"
 }
 
+if ($env:DATABRICKS_WORKSPACE_ID) {
+    Write-Host "OK: DATABRICKS_WORKSPACE_ID=$env:DATABRICKS_WORKSPACE_ID"
+}
+
 if (-not $env:DATABRICKS_CATALOG) {
     throw "DATABRICKS_CATALOG is required."
 }

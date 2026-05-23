@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$script_dir/lib/load_env.sh"
 if [ -f .env ]; then
-  set -a
-  . ./.env
-  set +a
+  load_dotenv ".env"
 else
   echo "WARN: .env not found. Copy .env.example to .env before the first Databricks run." >&2
 fi
@@ -37,6 +37,10 @@ databricks_cmd=(databricks)
 if [ -n "${DATABRICKS_PROFILE:-}" ]; then
   databricks_cmd+=(--profile "$DATABRICKS_PROFILE")
   echo "OK: DATABRICKS_PROFILE=$DATABRICKS_PROFILE"
+fi
+
+if [ -n "${DATABRICKS_WORKSPACE_ID:-}" ]; then
+  echo "OK: DATABRICKS_WORKSPACE_ID=$DATABRICKS_WORKSPACE_ID"
 fi
 
 if ! "${databricks_cmd[@]}" current-user me --output json >/dev/null; then

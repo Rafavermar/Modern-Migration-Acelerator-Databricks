@@ -64,7 +64,7 @@ Use it as a focused migration workbench that consumes or exports metadata.
 ## Strengths
 
 - Low-friction assessment using metadata exports.
-- No production credentials required for the first MVP run.
+- No production credentials required for the first sample run.
 - Databricks-native outputs in Delta.
 - Simple graph model: assets and dependencies.
 - Explicit target blueprint and data quality planning.
