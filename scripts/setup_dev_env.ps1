@@ -1,7 +1,8 @@
 param(
     [switch]$InstallMissingTools,
     [switch]$InstallDevDeps,
-    [switch]$InstallLocalSpark
+    [switch]$InstallLocalSpark,
+    [switch]$InstallGraphDeps
 )
 
 $ErrorActionPreference = "Stop"
@@ -104,13 +105,16 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-if ($InstallDevDeps -or $InstallLocalSpark) {
+if ($InstallDevDeps -or $InstallLocalSpark -or $InstallGraphDeps) {
     $extras = @()
     if ($InstallDevDeps) {
         $extras += "dev"
     }
     if ($InstallLocalSpark) {
         $extras += "local-spark"
+    }
+    if ($InstallGraphDeps) {
+        $extras += "graph"
     }
     & $venvPython -m pip install --no-build-isolation -e ".[$($extras -join ',')]"
     if ($LASTEXITCODE -ne 0) {

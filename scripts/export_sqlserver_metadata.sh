@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ -f .env ]; then
-  set -a
-  . ./.env
-  set +a
-fi
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$script_dir/lib/load_env.sh"
+load_dotenv ".env"
 
 container="${SQLSERVER_CONTAINER_NAME:-mma-legacy-sqlserver}"
 output_dir="${LOCAL_METADATA_OUTPUT_DIR:-local_outputs/legacy_metadata}"

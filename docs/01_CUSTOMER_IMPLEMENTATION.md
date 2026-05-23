@@ -4,6 +4,8 @@ This accelerator should be treated as a deployable product, not as a folder of e
 
 The customer does not copy this repository into every legacy system. The implementation team deploys the repository once, then the customer provides exports and access paths in a defined landing area.
 
+The customer does not need an existing metadata framework. The repo provides the metadata framework by normalizing raw exports into a common asset, dependency, risk and blueprint model.
+
 ## Product operating model
 
 1. Deploy the accelerator bundle to a customer Databricks workspace.
@@ -11,9 +13,12 @@ The customer does not copy this repository into every legacy system. The impleme
 3. Ask the customer to export legacy metadata into that landing area.
 4. Run the accelerator jobs.
 5. Review the generated summary, priority matrix, dependency graph, risk register, target blueprint and data quality plan.
-6. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
+6. Publish graph outputs to Neo4j for visual impact analysis.
+7. Index artifacts with Databricks Vector Search for semantic discovery.
+8. Use MLflow when generated recommendations, RAG or assistant workflows are introduced.
+9. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
 
-The MVP focuses on steps 1 to 5. Step 6 is where implementation choices become customer-specific.
+The first delivery focuses on steps 1 to 5. Steps 6 to 9 are activated after the first Databricks outputs are trusted and credentials are approved.
 
 Before positioning the accelerator, review `docs/00_PRODUCT_POSITIONING.md`. It defines where this product fits, when existing tools are better and how to decide between federation, ingestion, external tables and volumes.
 
@@ -52,7 +57,7 @@ An example landing manifest is defined in:
 contracts/landing_manifest.example.json
 ```
 
-The current MVP parser supports these file families:
+The current parser supports these file families:
 
 - ADF pipeline exports as `.json`.
 - ADF dataset, linked service and trigger exports as `.json`.
@@ -60,7 +65,7 @@ The current MVP parser supports these file families:
 - Synapse notebooks as `.ipynb`.
 - SQL scripts, views, procedures and external table DDL as `.sql`.
 
-Future phases can add richer source-specific extractors, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
+Source-specific extractors can become richer over time, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
 
 ## How to read first-run results
 
@@ -128,7 +133,7 @@ It exists so developers can:
 - Test metadata extraction repeatably.
 - Generate a sample inventory without needing customer infrastructure.
 
-In a real implementation, the customer would run approved metadata extraction SQL against their SQL Server instances, or grant read-only metadata access to an implementation service account. The accelerator should receive the output CSV or JSON, not direct production database credentials during MVP discovery.
+In a real implementation, the customer would run approved metadata extraction SQL against their SQL Server instances, or grant read-only metadata access to an implementation service account. The accelerator should receive the output CSV or JSON during initial discovery.
 
 The starter SQL Server extraction query is:
 
@@ -136,7 +141,15 @@ The starter SQL Server extraction query is:
 samples/sqlserver/extract/metadata_inventory.sql
 ```
 
-Direct SQL Server connectivity can be added later for automated discovery, but it should be optional and controlled because network access, credentials, approvals and data handling policies vary by customer.
+## Real SQL Server implementation
+
+For a real SQL Server estate, use one of three patterns:
+
+- Export-only discovery: the customer runs approved read-only metadata queries and drops CSV/JSON outputs into the landing folder.
+- Lakehouse Federation: Databricks queries SQL Server live for discovery, validation or reconciliation when network and governance allow it.
+- Connector-based ingestion: Databricks ingests selected source tables when the migration execution plan requires managed Delta outputs.
+
+Use export-only discovery first unless the customer already has approved network connectivity and secret handling. It is the lowest-friction and lowest-risk onboarding path.
 
 ## Data lake and Synapse external tables
 
@@ -145,7 +158,7 @@ Synapse serverless external tables usually point to files already stored in a la
 - The logical table object: database, schema, external table name, columns and dependencies.
 - The physical storage path: container, folder, file format and partition pattern.
 
-In the MVP, this is represented by:
+In this repo, this is represented by:
 
 - `samples/legacy_metadata/synapse_tables.csv`
 - `samples/legacy_metadata/synapse_serverless_external_tables.sql`
@@ -198,7 +211,7 @@ The accelerator should be configurable, not magical, for execution:
 - The generated blueprint should recommend target patterns.
 - Human review confirms which patterns become implementation work.
 
-This keeps the MVP usable as a product while avoiding risky assumptions about production data movement.
+This keeps the accelerator usable as a product while avoiding risky assumptions about production data movement.
 
 ## Minimal customer onboarding checklist
 

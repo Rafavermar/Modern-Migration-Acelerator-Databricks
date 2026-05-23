@@ -40,6 +40,9 @@ fi
 if [ "${INSTALL_LOCAL_SPARK:-0}" = "1" ]; then
   extras+=("local-spark")
 fi
+if [ "${INSTALL_GRAPH_DEPS:-0}" = "1" ]; then
+  extras+=("graph")
+fi
 if [ "${#extras[@]}" -gt 0 ]; then
   joined="$(IFS=,; echo "${extras[*]}")"
   "$venv_python" -m pip install --no-build-isolation -e ".[$joined]"

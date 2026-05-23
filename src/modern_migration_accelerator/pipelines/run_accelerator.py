@@ -1600,7 +1600,7 @@ def get_spark():
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the Databricks migration accelerator MVP.")
+    parser = argparse.ArgumentParser(description="Run the Databricks migration accelerator.")
     parser.add_argument("--catalog", default="migration_accelerator_dev")
     parser.add_argument("--source-root", default=default_source_root())
     parser.add_argument("--run-id", default=None)

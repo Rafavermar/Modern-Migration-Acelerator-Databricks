@@ -14,10 +14,19 @@ Use this checklist before the first real customer metadata run.
 - Full Trial or full workspace available.
 - Unity Catalog enabled.
 - Workspace URL known.
+- Workspace ID recorded.
 - CLI profile configured.
 - Target catalog name agreed.
 - Permissions confirmed for catalog, schema and Delta table creation.
 - Job cluster node type confirmed.
+
+## Neo4j
+
+- AuraDB Professional instance created.
+- URI recorded.
+- Database name recorded.
+- Credentials stored outside Git.
+- Local connectivity test passed.
 
 ## Metadata Landing
 
@@ -55,6 +64,14 @@ Use this checklist before the first real customer metadata run.
 - `control.run_log` has a successful run.
 - `silver.assets` contains expected source systems.
 - `silver.dependencies` contains expected relationships.
+- `gold.graph_edges` represents expected dependencies.
 - `gold.risk_register` is reviewable by the migration team.
 - `gold.target_databricks_blueprint` contains actionable target patterns.
 - `gold.data_quality_plan` contains validation work items.
+
+## Full Solution Activation
+
+- Neo4j graph publishing approved.
+- Vector Search indexing scope approved.
+- MLflow experiment path agreed.
+- RAG and Model Serving workflow agreed before interactive endpoints are created.

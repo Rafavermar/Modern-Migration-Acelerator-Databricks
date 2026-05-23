@@ -4,6 +4,16 @@ Plug-and-play migration assessment accelerator for Databricks modernization.
 
 The solution parses legacy metadata, normalizes assets, builds a dependency graph, generates migration risk outputs, produces Databricks target blueprints and writes Delta tables in Databricks.
 
+## How it works
+
+1. Configure the repo once for a Databricks Full Trial or full workspace.
+2. Run with the included sample estate to prove the platform path.
+3. Replace the sample folder with customer exports from ADF, Synapse, SQL Server, notebooks, SQL scripts and documentation.
+4. Run the bundle again to produce Delta outputs for assessment, graph exploration and migration planning.
+5. Publish the graph to Neo4j and index artifacts with Databricks Vector Search when the first Delta outputs are trusted.
+
+The customer does not need to use an existing metadata framework. The framework in this repo is the normalization contract used by the accelerator. A customer can provide raw exported artifacts in the landing folder, and the accelerator maps them into `bronze`, `silver`, `gold` and `control` outputs.
+
 ## Solution scope
 
 Included now:
@@ -29,7 +39,7 @@ The first deploy validates the Databricks assessment backbone. Neo4j, Vector Sea
 
 ## Outputs
 
-The required MVP audit and gold outputs are:
+The required audit and gold outputs are:
 
 - `control.run_log`
 - `control.metadata_snapshots`
@@ -46,7 +56,7 @@ The accelerator also writes internal Delta tables:
 - `silver.assets`
 - `silver.dependencies`
 
-Read the MVP results in this order:
+Read the assessment results in this order:
 
 1. `gold.assessment_summary` for the one-row executive view.
 2. `gold.asset_priority_matrix` for the review backlog.
@@ -83,26 +93,44 @@ On Windows, use Git Bash from `C:\Program Files\Git\bin\bash.exe` for the requir
 & 'C:\Program Files\Git\bin\bash.exe' scripts/local_smoke_test.sh
 ```
 
-Preferred authentication is a Databricks CLI profile:
+Preferred authentication is a Databricks CLI profile. Use the workspace URL from the browser, not only the numeric workspace ID:
 
 ```bash
-databricks auth login --host https://your-workspace-url
+databricks auth login --host https://your-workspace-url --profile mma-fulltrial
 ```
 
 Then set this in `.env`:
 
 ```bash
-DATABRICKS_PROFILE=DEFAULT
+DATABRICKS_PROFILE=mma-fulltrial
+DATABRICKS_WORKSPACE_ID=7474660420173503
 DATABRICKS_CATALOG=migration_accelerator_dev
 ```
 
 Do not commit `.env`; it is ignored by Git.
 
-Keep credentials out of committed sample files. Use `.env`, Databricks secrets, Unity Catalog connections or customer secret managers for real values.
+Keep credentials out of committed sample files. Use `.env` for local development, Databricks secrets for deployed jobs and customer secret managers for enterprise implementations.
+The Bash scripts load `.env` without shell-evaluating secret values, so passwords can contain normal special characters.
 
-## Current local-only workflow
+For Neo4j AuraDB, put the values in local `.env`:
 
-The Databricks CLI currently points to Databricks Free Edition, so do not deploy the bundle yet.
+```bash
+NEO4J_URI=neo4j+s://9c447469.databases.neo4j.io
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=<paste locally only>
+NEO4J_DATABASE=neo4j
+AURA_INSTANCEID=9c447469
+AURA_INSTANCENAME=mma-graph-dev
+```
+
+Install the graph dependency and verify connectivity:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_dev_env.ps1 -InstallGraphDeps
+powershell -ExecutionPolicy Bypass -File .\scripts\check_neo4j_connection.ps1
+```
+
+## Local checks before cloud deploy
 
 Use the local checks while the Full Trial and Neo4j AuraDB accounts are being created:
 
@@ -184,7 +212,7 @@ bash scripts/deploy_dev.sh
 bash scripts/run_accelerator_dev.sh
 ```
 
-You do not need the trial just to review, edit or run local smoke tests. You do need it for end-to-end validation because the MVP writes Delta tables, creates Databricks jobs and expects a real Databricks workspace, not Databricks Free Edition.
+You do not need the trial just to review, edit or run local smoke tests. You do need it for end-to-end validation because the accelerator writes Delta tables, creates Databricks jobs and expects a real Databricks workspace, not Databricks Free Edition.
 
 Before the first full run, have these ready:
 
@@ -211,13 +239,13 @@ For real metadata, upload files to a Unity Catalog volume and set:
 LEGACY_METADATA_SOURCE_ROOT=/Volumes/migration_accelerator_dev/landing/legacy_metadata
 ```
 
-Supported MVP file types are `.json` for ADF-like exports, `.csv` for Synapse inventory extracts and `.sql` for SQL scripts.
+Supported file types are `.json` for ADF-like exports, `.csv` for Synapse or SQL Server inventory extracts, `.ipynb` for notebooks and `.sql` for SQL scripts.
 
 ## Neo4j timing
 
-Create **Neo4j AuraDB Professional - Free trial** for the first graph integration test.
+Create **Neo4j AuraDB Professional - Free trial** for the first graph integration test. A 4GB vector-optimized instance is fine when you want to avoid friction for later graph plus vector experiments.
 
-Use the Databricks gold graph outputs first, then connect AuraDB. At that point the needed information will be:
+Use the Databricks gold graph outputs first, then publish them to AuraDB. The needed information is:
 
 - Neo4j URI.
 - Database name.
@@ -260,11 +288,11 @@ The target demo writes:
 
 - `demo.target_migration_plan`
 
-On Windows, Databricks bundle scripts are Bash-first because the MVP requires `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
+On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
 
 ## CI/CD readiness
 
-This project is packaged as a Databricks Declarative Automation Bundle and is therefore ready to be integrated into enterprise CI/CD. CI/CD workflow files are intentionally excluded from the MVP because authentication, approval gates, environments, service principals and deployment policies are customer-specific.
+This project is packaged as a Databricks Declarative Automation Bundle and is therefore ready to be integrated into enterprise CI/CD. CI/CD workflow files are intentionally excluded from the repo because authentication, approval gates, environments, service principals and deployment policies are customer-specific.
 
 Optional future files:
 
@@ -285,4 +313,4 @@ Read these in order:
 - `docs/04_LOCAL_SQLSERVER_FIXTURE.md`
 - `docs/05_ADVANCED_CAPABILITIES.md`
 
-Vector Search, embeddings, RAG, MLflow tracking, GenAI tracing and model or agent evaluation should be added only after the deterministic migration analysis MVP is working in Databricks.
+Vector Search, embeddings, RAG, MLflow tracking, GenAI tracing and model or agent evaluation are full-solution layers that build on the trusted Databricks assessment outputs.

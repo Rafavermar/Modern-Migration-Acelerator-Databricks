@@ -59,3 +59,19 @@ LEGACY_METADATA_SOURCE_ROOT=local_outputs/legacy_metadata
 ## Boundary
 
 SQL Server in Docker is a local fixture for repeatable development. Synapse serverless databases, external tables and notebooks are represented by files under `samples/legacy_metadata`; they are not executed inside the SQL Server container.
+
+## Real SQL Server source
+
+In a customer implementation, do not require Docker. Use the same metadata contract with a real source:
+
+1. Customer DBA reviews `samples/sqlserver/extract/metadata_inventory.sql`.
+2. Customer runs the query with read-only metadata permissions.
+3. Output is saved as CSV under the landing path:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
+```
+
+4. The accelerator reads that export with the rest of the ADF, Synapse, notebook and SQL artifacts.
+
+Direct SQL Server connectivity is useful for federation, validation or automated discovery, but export-only onboarding is the simplest first path.

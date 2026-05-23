@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ -f .env ]; then
-  set -a
-  . ./.env
-  set +a
-fi
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$script_dir/lib/load_env.sh"
+load_dotenv ".env"
 
 target="${DATABRICKS_BUNDLE_ENV:-dev}"
 

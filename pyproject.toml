@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "modern-migration-accelerator-databricks"
 version = "0.1.0"
-description = "MVP Databricks accelerator for legacy migration metadata analysis."
+description = "Databricks accelerator for legacy migration metadata analysis."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = []
@@ -16,6 +16,9 @@ dev = [
 ]
 local-spark = [
   "pyspark>=3.5",
+]
+graph = [
+  "neo4j>=5.26",
 ]
 
 [tool.ruff]
