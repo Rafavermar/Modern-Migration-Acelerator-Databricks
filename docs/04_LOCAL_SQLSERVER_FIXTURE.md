@@ -24,6 +24,18 @@ On Windows PowerShell:
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_sqlserver.ps1
 ```
 
+Verify seeded row counts:
+
+```bash
+bash scripts/check_sqlserver_fixture.sh
+```
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_sqlserver_fixture.ps1
+```
+
 This starts `mcr.microsoft.com/mssql/server:2022-latest`, creates the `LegacySales` database and seeds:
 
 - `dbo.CustomerOrders`

@@ -26,6 +26,17 @@ For the first real Databricks execution, follow `docs/02_FIRST_RUN_RUNBOOK.md`. 
 
 For Neo4j, Vector Search, RAG, MLflow and Model Serving planning, use `docs/05_ADVANCED_CAPABILITIES.md`. These are part of the full solution and are activated after the first Databricks run is trusted.
 
+## Customer connection map
+
+| Input | Where it is configured | What changes for a customer |
+| --- | --- | --- |
+| Databricks workspace | `.env`, `DATABRICKS_PROFILE`, `DATABRICKS_CATALOG` | Use the customer workspace profile and target catalog. |
+| Metadata root | `LEGACY_METADATA_SOURCE_ROOT` | Point to the customer Unity Catalog volume or external volume. |
+| ADF/Synapse/notebooks/SQL | Metadata landing folders | Drop exported files into the expected folders. |
+| SQL Server | Export CSV/JSON or approved direct access | Start with export-only discovery unless network and secrets are already approved. |
+| Neo4j | `.env` locally, secrets for enterprise | Publish the graph after the Databricks Delta outputs are trusted. |
+| Vector Search and MLflow | Advanced phase config | Add after artifact outputs, graph model and security review are stable. |
+
 ## Metadata landing contract
 
 Recommended landing location:

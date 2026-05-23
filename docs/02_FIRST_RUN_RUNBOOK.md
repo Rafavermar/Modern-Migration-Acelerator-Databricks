@@ -218,6 +218,22 @@ Put customer artifacts under the same root, for example:
 
 For SQL Server, the easiest first implementation is export-only discovery: run the approved metadata query in `samples/sqlserver/extract/metadata_inventory.sql`, save the CSV under `sqlserver/inventory/`, then run the accelerator.
 
+Customer mode keeps the same execution commands. The only functional change is the metadata source path:
+
+```bash
+bash scripts/validate_bundle.sh
+bash scripts/deploy_dev.sh
+bash scripts/run_accelerator_dev.sh
+bash scripts/run_target_demo_dev.sh
+```
+
+Then publish graph exploration from the same normalized model:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
+```
+
 ## 10. Known first-run fixes
 
 Issue: `OSError: [Errno 5] Input/output error` while reading files under `/Workspace/Users/.../.bundle/.../files/samples/legacy_metadata`.

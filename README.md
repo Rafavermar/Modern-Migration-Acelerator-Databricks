@@ -14,6 +14,30 @@ The solution parses legacy metadata, normalizes assets, builds a dependency grap
 
 The customer does not need to use an existing metadata framework. The framework in this repo is the normalization contract used by the accelerator. A customer can provide raw exported artifacts in the landing folder, and the accelerator maps them into `bronze`, `silver`, `gold` and `control` outputs.
 
+## Plug-and-play connection points
+
+Change only these inputs when moving from demo to a real customer estate:
+
+| Area | Demo default | Customer value |
+| --- | --- | --- |
+| Databricks workspace | `DATABRICKS_PROFILE=mma-fulltrial` | Customer CLI profile or approved service principal. |
+| Target catalog | `migration_accelerator_dev` | Customer Unity Catalog catalog. |
+| Metadata landing | `/Volumes/<catalog>/landing/legacy_metadata/demo` | `/Volumes/<catalog>/landing/legacy_metadata/` or an approved external volume. |
+| ADF and Synapse artifacts | `samples/legacy_metadata/` | Exported `.json`, `.csv`, `.sql` and `.ipynb` files under the landing folders. |
+| SQL Server | Docker fixture plus `local_outputs/legacy_metadata/sqlserver_inventory.csv` | Read-only metadata export saved under `sqlserver/inventory/`, or approved federation/connector access. |
+| Neo4j | Local `.env` AuraDB values | Customer AuraDB or Neo4j endpoint and secret strategy. |
+
+Recommended customer landing folders:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/adf/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/inventory/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/notebooks/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/sql/
+/Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
+/Volumes/<catalog>/landing/legacy_metadata/docs/
+```
+
 ## Solution scope
 
 Included now:
@@ -179,6 +203,18 @@ On Windows PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_sqlserver.ps1
+```
+
+Verify seeded row counts:
+
+```bash
+bash scripts/check_sqlserver_fixture.sh
+```
+
+On Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\check_sqlserver_fixture.ps1
 ```
 
 Export inventory metadata:
