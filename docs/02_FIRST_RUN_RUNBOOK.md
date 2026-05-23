@@ -93,7 +93,7 @@ bash scripts/deploy_dev.sh
 Expected result:
 
 - Databricks bundle files are synced to the workspace.
-- Two jobs are created: accelerator and target demo.
+- Three jobs are created: accelerator, target demo and semantic index prep.
 - Runtime Python scripts are uploaded to `/Volumes/<catalog>/landing/legacy_metadata/runtime`.
 
 ## 6. Run the accelerator
@@ -142,7 +142,19 @@ Expected output:
 
 - `demo.target_migration_plan`
 
-## 8. Publish to Neo4j
+## 8. Prepare semantic corpus
+
+```bash
+bash scripts/run_semantic_index_prep_dev.sh
+```
+
+Expected output:
+
+- `gold.semantic_legacy_documents`
+
+This table contains sanitized chunks from source artifacts and generated accelerator outputs. It is the Delta source for Databricks Vector Search. The primary key is `chunk_id`; the text column is `chunk_text`.
+
+## 9. Publish to Neo4j
 
 Check AuraDB connectivity:
 
@@ -188,7 +200,7 @@ RETURN path
 LIMIT 25;
 ```
 
-## 9. Move from sample metadata to customer metadata
+## 10. Move from sample metadata to customer metadata
 
 Create or select a governed landing volume:
 
@@ -225,6 +237,7 @@ bash scripts/validate_bundle.sh
 bash scripts/deploy_dev.sh
 bash scripts/run_accelerator_dev.sh
 bash scripts/run_target_demo_dev.sh
+bash scripts/run_semantic_index_prep_dev.sh
 ```
 
 Then publish graph exploration from the same normalized model:
@@ -234,7 +247,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
 ```
 
-## 10. Known first-run fixes
+## 11. Known first-run fixes
 
 Issue: `OSError: [Errno 5] Input/output error` while reading files under `/Workspace/Users/.../.bundle/.../files/samples/legacy_metadata`.
 
@@ -260,7 +273,7 @@ Cause: serverless task startup can hit transient Workspace Files reads.
 
 Fix: the jobs execute runtime Python scripts from the Unity Catalog volume instead of `/Workspace/.../.bundle/.../files`.
 
-## 11. Decide next phase
+## 12. Decide next phase
 
 After the first successful customer metadata run:
 

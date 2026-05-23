@@ -116,6 +116,7 @@ Use these Delta tables first:
 - `gold.risk_register`: risk scores, factors and recommended actions.
 - `gold.target_databricks_blueprint`: proposed Databricks target patterns.
 - `gold.data_quality_plan`: validation checks to execute during migration.
+- `gold.semantic_legacy_documents`: chunked artifacts and generated outputs for Vector Search.
 
 Interpretation flow:
 
@@ -125,6 +126,7 @@ Interpretation flow:
 4. Confirm risk detail in `gold.risk_register`.
 5. Confirm target pattern in `gold.target_databricks_blueprint`.
 6. Use `gold.data_quality_plan` as the validation backlog.
+7. Use `gold.semantic_legacy_documents` as the source table for semantic indexing.
 
 Neo4j makes graph exploration visual. Vector Search makes discovery semantic. Both build on these Delta outputs.
 

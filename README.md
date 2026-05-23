@@ -10,7 +10,7 @@ The solution parses legacy metadata, normalizes assets, builds a dependency grap
 2. Run with the included sample estate copied to a Unity Catalog volume to prove the platform path.
 3. Point `LEGACY_METADATA_SOURCE_ROOT` to customer exports from ADF, Synapse, SQL Server, notebooks, SQL scripts and documentation.
 4. Run the bundle again to produce Delta outputs for assessment, graph exploration and migration planning.
-5. Publish the graph to Neo4j and index artifacts with Databricks Vector Search when the first Delta outputs are trusted.
+5. Publish the graph to Neo4j and prepare semantic chunks for Databricks Vector Search when the first Delta outputs are trusted.
 
 The customer does not need to use an existing metadata framework. The framework in this repo is the normalization contract used by the accelerator. A customer can provide raw exported artifacts in the landing folder, and the accelerator maps them into `bronze`, `silver`, `gold` and `control` outputs.
 
@@ -48,6 +48,7 @@ Included now:
 - Local SQL Server Docker fixture for repeatable legacy metadata extraction tests.
 - Self-contained serverless Python tasks for reliable Databricks execution.
 - Python/Spark pipeline for metadata normalization, graph-ready Delta outputs and gold assessment outputs.
+- Semantic Delta corpus preparation for Databricks Vector Search.
 - Delta outputs for bronze, silver, gold and control layers.
 
 Full solution technologies:
@@ -72,6 +73,7 @@ The required audit and gold outputs are:
 - `gold.asset_priority_matrix`
 - `gold.graph_edges`
 - `gold.risk_register`
+- `gold.semantic_legacy_documents`
 - `gold.target_databricks_blueprint`
 - `gold.data_quality_plan`
 
@@ -89,6 +91,7 @@ Read the assessment results in this order:
 4. `gold.risk_register` for risk detail.
 5. `gold.target_databricks_blueprint` for target pattern decisions.
 6. `gold.data_quality_plan` for validation work.
+7. `gold.semantic_legacy_documents` for Vector Search indexing.
 
 By default the catalog is `migration_accelerator_dev`. Override it with `DATABRICKS_CATALOG` in `.env`.
 
@@ -352,6 +355,14 @@ bash scripts/run_target_demo_dev.sh
 The target demo writes:
 
 - `demo.target_migration_plan`
+
+Prepare the semantic corpus for Vector Search:
+
+```bash
+bash scripts/run_semantic_index_prep_dev.sh
+```
+
+This writes `gold.semantic_legacy_documents` with primary key `chunk_id` and text column `chunk_text`. The table has Delta Change Data Feed enabled so it can become the source for a Vector Search Delta Sync index.
 
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
 

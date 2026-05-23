@@ -42,6 +42,7 @@ echo "Uploading runtime scripts to /Volumes/${catalog}/${schema}/${volume}/runti
 "${databricks_cmd[@]}" fs mkdirs "$runtime_target"
 "${databricks_cmd[@]}" fs cp --overwrite "src/modern_migration_accelerator/pipelines/run_accelerator.py" "$runtime_target/run_accelerator.py"
 "${databricks_cmd[@]}" fs cp --overwrite "src/modern_migration_accelerator/pipelines/run_target_demo.py" "$runtime_target/run_target_demo.py"
+"${databricks_cmd[@]}" fs cp --overwrite "src/modern_migration_accelerator/pipelines/run_semantic_index_prep.py" "$runtime_target/run_semantic_index_prep.py"
 
 if [ -n "${LEGACY_METADATA_SOURCE_ROOT:-}" ]; then
   echo "Using customer metadata source: $LEGACY_METADATA_SOURCE_ROOT"

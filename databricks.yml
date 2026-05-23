@@ -6,7 +6,7 @@ include:
 
 variables:
   catalog:
-    description: Unity Catalog catalog used for MVP Delta outputs.
+    description: Unity Catalog catalog used for accelerator Delta outputs.
     default: migration_accelerator_dev
   source_root:
     description: Legacy metadata source folder. Defaults to demo metadata uploaded to a Unity Catalog volume.

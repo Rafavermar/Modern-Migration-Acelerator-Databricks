@@ -27,7 +27,9 @@ flowchart LR
 | `scripts/` | Local setup, preflight, bundle validation, deploy, run and connectivity helpers. |
 | `scripts/publish_neo4j_graph.*` | Publishes the normalized asset and dependency graph to Neo4j AuraDB. |
 | `scripts/verify_neo4j_graph.*` | Verifies the latest Neo4j graph publication. |
+| `scripts/run_semantic_index_prep_dev.sh` | Runs the Databricks job that creates the Vector Search-ready semantic corpus. |
 | `src/modern_migration_accelerator/pipelines/run_accelerator.py` | Serverless-safe accelerator entrypoint. It loads text metadata, normalizes assets, builds dependencies, risks, blueprint, DQ plan and graph edges. |
+| `src/modern_migration_accelerator/pipelines/run_semantic_index_prep.py` | Builds sanitized chunks from legacy artifacts and generated outputs for Vector Search. |
 | `src/modern_migration_accelerator/neo4j_graph.py` | Builds and publishes the Neo4j graph payload. |
 | `src/modern_migration_accelerator/pipelines/run_target_demo.py` | Demo consumer of the generated blueprint. |
 | `contracts/` | Customer intake checklist, inventory CSV contract and metadata taxonomy. |
@@ -42,8 +44,9 @@ flowchart LR
 5. Run the accelerator.
 6. Review gold and control tables.
 7. Run the target demo.
-8. Publish to Neo4j.
-9. Add Vector Search and MLflow-backed workflows after graph and Delta outputs are trusted.
+8. Prepare semantic chunks for Vector Search.
+9. Publish to Neo4j.
+10. Add Vector Search endpoint/index and MLflow-backed workflows after graph and Delta outputs are trusted.
 
 ## Metadata Modes
 
@@ -68,7 +71,7 @@ The repo does not require the customer to already have a metadata framework. The
 | `control` | `run_log`, `metadata_snapshots` |
 | `bronze` | `raw_metadata` |
 | `silver` | `assets`, `dependencies` |
-| `gold` | `assessment_summary`, `asset_priority_matrix`, `graph_edges`, `risk_register`, `target_databricks_blueprint`, `data_quality_plan` |
+| `gold` | `assessment_summary`, `asset_priority_matrix`, `graph_edges`, `risk_register`, `target_databricks_blueprint`, `data_quality_plan`, `semantic_legacy_documents` |
 | `demo` | `target_migration_plan` |
 
-Read `gold.assessment_summary` first, then `gold.asset_priority_matrix`, then `gold.graph_edges`, `gold.risk_register`, `gold.target_databricks_blueprint` and `gold.data_quality_plan`.
+Read `gold.assessment_summary` first, then `gold.asset_priority_matrix`, then `gold.graph_edges`, `gold.risk_register`, `gold.target_databricks_blueprint`, `gold.data_quality_plan` and `gold.semantic_legacy_documents`.

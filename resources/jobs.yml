@@ -39,3 +39,24 @@ resources:
         - environment_key: default
           spec:
             environment_version: "2"
+
+    semantic_index_prep:
+      name: ${bundle.name}-${bundle.target}-semantic-index-prep
+      description: Prepare Delta chunks over legacy artifacts and generated outputs for Databricks Vector Search.
+      max_concurrent_runs: 1
+      tasks:
+        - task_key: prepare_semantic_documents
+          environment_key: default
+          max_retries: 2
+          min_retry_interval_millis: 10000
+          spark_python_task:
+            python_file: dbfs:/Volumes/${var.catalog}/landing/legacy_metadata/runtime/run_semantic_index_prep.py
+            parameters:
+              - --catalog
+              - ${var.catalog}
+              - --source-root
+              - ${var.source_root}
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "2"

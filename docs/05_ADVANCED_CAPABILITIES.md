@@ -89,6 +89,13 @@ LIMIT 25;
 
 ## Vector Search and RAG
 
+Current base:
+
+- `scripts/run_semantic_index_prep_dev.sh` creates `gold.semantic_legacy_documents`.
+- `chunk_id` is the primary key.
+- `chunk_text` is the text column to embed.
+- Delta Change Data Feed is enabled on the table.
+
 Purpose:
 
 - Build embeddings over legacy documentation, ADF exports, Synapse notebooks, SQL scripts and generated blueprints.
@@ -101,6 +108,7 @@ Inputs:
 - `bronze.raw_metadata`
 - `silver.assets`
 - `silver.dependencies`
+- `gold.semantic_legacy_documents`
 - `gold.target_databricks_blueprint`
 - `gold.risk_register`
 - `gold.data_quality_plan`
@@ -108,11 +116,20 @@ Inputs:
 
 Outputs:
 
-- Chunked legacy artifact Delta table.
+- Chunked legacy artifact and generated-output Delta table.
 - Embedding-ready document view.
 - Databricks Vector Search index.
 - Search notebook or API utility.
 - RAG prompt template.
+
+Activation steps:
+
+1. Confirm which artifacts can be indexed.
+2. Run `bash scripts/run_semantic_index_prep_dev.sh`.
+3. Select the embedding model endpoint.
+4. Create the Vector Search endpoint.
+5. Create a Delta Sync index over `gold.semantic_legacy_documents`.
+6. Add a search notebook or API utility.
 
 Pause implementation if:
 
