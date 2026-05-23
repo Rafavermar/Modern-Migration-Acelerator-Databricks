@@ -29,50 +29,57 @@ Do not activate these layers until:
 
 ## Neo4j
 
-Purpose:
+Neo4j is the interactive graph layer for migration impact analysis. It does not replace Delta tables; it gives architects a fast way to traverse dependencies, upstream/downstream blast radius and target-pattern clusters.
 
-- Explore graph impact analysis interactively.
-- Publish the accelerator asset and dependency model to a graph database.
-- Keep Delta as the source of truth.
+Role in the solution:
 
-Needed:
+- Delta remains the source of truth: `silver.assets`, `silver.dependencies`, `gold.graph_edges`.
+- Neo4j receives a published projection of the latest normalized graph.
+- Users query Neo4j when they need path exploration, visual dependency maps or impact analysis.
 
-- Neo4j URI and database name.
-- Authentication method and secret location.
-- TLS and network path from Databricks.
-- Export mode: read-only graph publishing or bidirectional sync.
+Local trial configuration:
 
-Local trial settings:
-
-- AuraDB Professional Trial.
-- 4GB memory when vector optimization is enabled.
+- AuraDB Professional Trial, instance `mma-graph-dev`.
+- 4GB memory and vector-optimized configuration are acceptable for the trial.
 - `neo4j+s://` URI.
-- Password stored only in `.env` locally and later in Databricks secrets.
+- Password stored only in `.env` locally; use Databricks secrets or a customer secret manager for enterprise runs.
 
-Initial labels:
+Implementation:
 
-- `MigrationRun`
-- `MigrationAsset`
-- `SourceSystem`
-- `TargetPattern`
+1. `publish_neo4j_graph.*` reads the same metadata inputs as the demo/customer run.
+2. It parses assets, dependencies, risks, target patterns and DQ counts locally.
+3. It writes a clean graph projection to AuraDB.
+4. It uses constraints and `MERGE` so repeated publishes update the graph without duplicating nodes.
+5. `verify_neo4j_graph.*` checks that the expected labels and relationships exist.
 
-Initial relationships:
+Graph model:
 
-- `INCLUDES_ASSET`
-- `FROM_SOURCE_SYSTEM`
-- `HAS_TARGET_PATTERN`
-- `MIGRATION_DEPENDENCY`
+| Item | Meaning |
+| --- | --- |
+| `MigrationRun` | One publication run and its timestamp. |
+| `MigrationAsset` | ADF pipeline, dataset, Synapse table, notebook, SQL script, SQL Server table or generated asset. |
+| `SourceSystem` | Source platform grouping such as ADF, Synapse or SQL Server. |
+| `TargetPattern` | Recommended Databricks target pattern. |
+| `INCLUDES_ASSET` | Connects a run to its published assets. |
+| `FROM_SOURCE_SYSTEM` | Groups assets by legacy platform. |
+| `HAS_TARGET_PATTERN` | Shows the recommended target landing pattern. |
+| `MIGRATION_DEPENDENCY` | Direct dependency between two assets. |
 
-Local publish:
+Publish and verify:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
 ```
 
-The publisher reads the same metadata inputs as the demo run: `samples/legacy_metadata` plus `local_outputs/legacy_metadata` when SQL Server metadata has been exported. It enriches each asset with risk, priority, target pattern and DQ counts.
+Open Neo4j Aura Console > Query or Explore and run:
 
-Useful Neo4j Browser queries:
+```cypher
+MATCH (r:MigrationRun)-[:INCLUDES_ASSET]->(a:MigrationAsset)
+RETURN r.run_id, count(a) AS assets
+ORDER BY r.run_timestamp DESC
+LIMIT 5;
+```
 
 ```cypher
 MATCH (r:MigrationRun)-[:INCLUDES_ASSET]->(a:MigrationAsset)
@@ -87,18 +94,26 @@ RETURN path
 LIMIT 25;
 ```
 
+Interpretation:
+
+- Start with `MigrationRun` to confirm the latest publish.
+- Use `review_priority='p1'` and `risk_level='high'` to find the migration review backlog.
+- Expand `MIGRATION_DEPENDENCY` paths to see blast radius.
+- Compare `TargetPattern` clusters with `gold.target_databricks_blueprint`.
+- If Neo4j disagrees with Delta outputs, fix the accelerator parsing/model first and republish.
+
+Screenshots can later be stored under `docs/assets/` and linked here.
+
 ## Vector Search and RAG
 
-Vector Search is the semantic retrieval layer. It lets a user ask questions such as "which high-risk order assets should move first?" and retrieve the most relevant chunks from legacy artifacts, risk rows, blueprint rows, graph edges and DQ plans.
+Vector Search is the semantic retrieval layer. It lets a user ask questions such as "which high-risk order assets should move first?" and retrieve relevant chunks from legacy artifacts, risk rows, blueprint rows, graph edges and DQ plans.
 
-Current base:
+Role in the solution:
 
-- `scripts/run_semantic_index_prep_dev.sh` creates `gold.semantic_legacy_documents`.
-- `chunk_id` is the primary key.
-- `chunk_text` is the text column to embed.
-- Delta Change Data Feed is enabled on the table.
-- `scripts/create_vector_search_dev.sh` creates a dev Vector Search endpoint and Delta Sync index.
-- `scripts/query_vector_search_dev.sh` runs a starter semantic search.
+- `gold.semantic_legacy_documents` is the governed corpus.
+- `semantic_legacy_documents_vs` is the retrieval index.
+- `rag_search_dev.*` converts raw search results into a reviewer-friendly evidence brief.
+- A later assistant should retrieve first, generate second, and log/evaluate every answer.
 
 Terminology:
 
@@ -112,12 +127,13 @@ Terminology:
 | Vector Search index | `migration_accelerator_dev.gold.semantic_legacy_documents_vs`, the Unity Catalog-managed searchable index. |
 | Delta Sync | Databricks keeps the index aligned with a Delta source table. Dev uses triggered sync. |
 | Hybrid search | Combines semantic vector retrieval with keyword matching. |
+| RAG | Retrieval-augmented generation. In this repo the first layer retrieves and summarizes evidence before any LLM is added. |
 
 Purpose:
 
 - Build embeddings over legacy documentation, ADF exports, Synapse notebooks, SQL scripts and generated blueprints.
 - Support semantic search over the legacy estate.
-- Support future RAG use cases such as "ask your legacy platform".
+- Support RAG use cases such as "ask your legacy platform".
 - Improve mapping between legacy assets and Databricks target patterns.
 
 Inputs:
@@ -125,7 +141,6 @@ Inputs:
 - `bronze.raw_metadata`
 - `silver.assets`
 - `silver.dependencies`
-- `gold.semantic_legacy_documents`
 - `gold.target_databricks_blueprint`
 - `gold.risk_register`
 - `gold.data_quality_plan`
@@ -133,11 +148,11 @@ Inputs:
 
 Outputs:
 
-- Chunked legacy artifact and generated-output Delta table.
-- Embedding-ready document view.
+- `gold.semantic_legacy_documents`: chunked legacy artifact and generated-output Delta table.
 - Databricks Vector Search index.
-- Search notebook or API utility.
-- RAG prompt template.
+- `local_outputs/rag/latest_search.json`: raw search results.
+- `local_outputs/rag/latest_answer.md`: grounded retrieval brief.
+- `local_outputs/rag/latest_trace.json`: MLflow-ready trace payload.
 
 Activation steps:
 
@@ -146,7 +161,8 @@ Activation steps:
 3. Use embedding endpoint `databricks-qwen3-embedding-0-6b` for dev unless the customer mandates another model.
 4. Run `bash scripts/create_vector_search_dev.sh`.
 5. Query with `bash scripts/query_vector_search_dev.sh "<question>"`.
-6. Add a search notebook, API utility or RAG workflow after the retrieval behavior is useful.
+6. Build a retrieval brief with `scripts/rag_search_dev.*`.
+7. Add LLM generation only after retrieval quality is useful.
 
 Dev Vector Search configuration:
 
@@ -172,7 +188,8 @@ How it is implemented:
 7. The script creates `migration_accelerator_dev.gold.semantic_legacy_documents_vs` as a `DELTA_SYNC` and `HYBRID` index.
 8. Databricks computes embeddings from `chunk_text` with `databricks-qwen3-embedding-0-6b`.
 9. The script waits until the index is ready and triggers sync.
-10. `query_vector_search_dev.*` queries the REST endpoint and returns relevant chunks with scores.
+10. `query_vector_search_dev.*` queries the REST endpoint and returns relevant chunks.
+11. `rag_search_dev.*` parses those rows and writes a deterministic evidence brief plus trace JSON.
 
 How to use it:
 
@@ -194,6 +211,12 @@ Query it:
 powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk legacy assets should be migrated first?"
 ```
 
+Build a RAG-ready brief:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which high risk legacy assets should be migrated first?"
+```
+
 Where to see it in Databricks:
 
 - Source table: `Catalog` > `migration_accelerator_dev` > `gold` > `semantic_legacy_documents`.
@@ -202,6 +225,22 @@ Where to see it in Databricks:
 - Endpoint: verify with `databricks --profile <profile> vector-search-endpoints get-endpoint mma-vector-search-dev`.
 - Do not look for `mma-vector-search-dev` under `AI/ML > Serving`; Vector Search endpoints are managed separately from normal serving endpoints.
 
+Programmatic query options:
+
+- Repo script: `scripts/query_vector_search_dev.*`.
+- Repo RAG utility: `scripts/rag_search_dev.*`.
+- Databricks REST API: `POST /api/2.0/vector-search/indexes/<index_name>/query`.
+- Databricks SQL: `vector_search()` when enabled in the target workspace.
+- Python SDK: useful later for notebooks or a served app.
+
+Interpretation:
+
+- A result is evidence, not a final recommendation.
+- `asset_name`, `risk_level`, `review_priority` and `target_pattern` explain why a chunk is useful.
+- `source_path` tells you whether evidence came from raw legacy metadata or generated gold outputs.
+- Strong migration decisions should be confirmed in `gold.asset_priority_matrix`, `gold.risk_register`, `gold.graph_edges` and Neo4j.
+- Weak or generic results mean the semantic corpus needs better artifacts, richer metadata exports or more specific user questions.
+
 Operational notes:
 
 - First provisioning can take several minutes.
@@ -209,6 +248,7 @@ Operational notes:
 - Query scripts call the Vector Search REST endpoint through `databricks api post` to avoid a current CLI wrapper parsing issue.
 - For production, review endpoint type, sync mode, model endpoint, usage policy and service principal authentication.
 - In dev, `indexed_row_count=309` was validated after indexing the demo estate plus SQL Server export.
+- Query scripts use `HYBRID` by default because migration questions often mix natural language and exact asset names.
 
 Pause implementation if:
 
@@ -219,9 +259,16 @@ Pause implementation if:
 
 ## MLflow
 
-Use MLflow when the accelerator introduces GenAI behavior or generated recommendations.
+MLflow is the observability and evaluation layer for GenAI behavior. The current RAG utility creates a trace-shaped JSON payload and can optionally log artifacts to an MLflow experiment. Full MLflow GenAI tracing starts when an LLM response is introduced.
 
-Track:
+Current starter:
+
+- Optional dependency: `pip install -e .[genai]`.
+- Experiment: `MLFLOW_EXPERIMENT_NAME`, default `/Shared/modern-migration-accelerator`.
+- Script: `scripts/rag_search_dev.ps1 -LogMlflow`.
+- Logged artifacts: search JSON, retrieval brief and trace JSON.
+
+Trace and evaluate when generated answers exist:
 
 - Prompt versions.
 - Retrieval context.
@@ -230,6 +277,20 @@ Track:
 - Evaluation datasets.
 - Trace spans for RAG or agent workflows.
 - Quality metrics such as groundedness, correctness and completeness.
+
+Minimal evaluation path:
+
+1. Curate 10-20 real migration questions.
+2. Store expected answer notes and reviewer expectations.
+3. Run the RAG/assistant workflow with MLflow tracing enabled.
+4. Evaluate relevance, groundedness, safety and completeness.
+5. Promote only prompts/models that improve the evaluation set.
+
+Where to see it in Databricks:
+
+- `Experiments` for MLflow runs and artifacts.
+- Evaluation runs after `mlflow.genai.evaluate()` is introduced.
+- Traces once the RAG function or assistant endpoint is instrumented.
 
 Pause implementation if:
 
@@ -261,5 +322,8 @@ Advanced capabilities must enhance the assessment while keeping the first-run Da
 ## Official References
 
 - Databricks Vector Search setup: https://docs.databricks.com/aws/en/vector-search/create-vector-search
+- Databricks Vector Search query options: https://docs.databricks.com/aws/en/vector-search/query-vector-search
 - Databricks Vector Search CLI: https://docs.databricks.com/aws/en/dev-tools/cli/reference/vector-search-indexes-commands
 - Databricks Vector Search cost management: https://docs.databricks.com/aws/en/vector-search/vector-search-cost-management
+- Databricks MLflow Tracing for GenAI: https://docs.databricks.com/aws/en/mlflow3/genai/tracing/
+- Databricks MLflow GenAI evaluation: https://docs.databricks.com/aws/en/mlflow3/genai/eval-monitor/concepts/eval-harness

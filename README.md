@@ -56,7 +56,7 @@ Full solution technologies:
 - Databricks Workflows on serverless compute and Delta tables for the assessment backbone.
 - Neo4j AuraDB for graph exploration and impact analysis.
 - Databricks Vector Search.
-- RAG over legacy artifacts and generated blueprints.
+- RAG/search over legacy artifacts and generated blueprints.
 - MLflow Tracking or MLflow Tracing.
 - Databricks Model Serving.
 - Enterprise CI/CD integration through the customer standard toolchain.
@@ -404,6 +404,20 @@ Default dev settings:
 The query scripts call the Vector Search REST endpoint through `databricks api post` because the current CLI wrapper can print an unmarshalling error even when the API returns valid results.
 
 In the Databricks UI, inspect the Vector Search index through `Catalog`, not `AI/ML > Serving`. Search for `semantic_legacy_documents_vs` or browse `migration_accelerator_dev.gold`. The Vector Search endpoint is managed separately from standard Model Serving endpoints.
+
+Build a RAG-ready retrieval brief:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?"
+```
+
+This writes:
+
+- `local_outputs/rag/latest_search.json`
+- `local_outputs/rag/latest_answer.md`
+- `local_outputs/rag/latest_trace.json`
+
+The starter utility does retrieval and grounded summarization only. Add `-LogMlflow` after installing `pip install -e .[genai]` to log the run artifacts to the configured MLflow experiment.
 
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
 

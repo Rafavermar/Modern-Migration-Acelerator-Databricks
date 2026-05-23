@@ -205,7 +205,38 @@ Where to see it:
 
 It is normal that `mma-vector-search-dev` does not appear under `AI/ML > Serving`. Vector Search endpoints are not standard Model Serving endpoints. The embedding model endpoint is Databricks-managed and may appear under AI Gateway or foundation model areas depending on workspace UI and filters.
 
-## 10. Publish to Neo4j
+## 10. Run RAG-ready search utility
+
+After Vector Search returns useful results, build a local retrieval brief:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?"
+```
+
+Git Bash equivalent:
+
+```bash
+bash scripts/rag_search_dev.sh "Which order assets need the first migration review?"
+```
+
+Expected local outputs:
+
+- `local_outputs/rag/latest_search.json`: raw Vector Search rows and response.
+- `local_outputs/rag/latest_answer.md`: readable evidence brief for a migration reviewer.
+- `local_outputs/rag/latest_trace.json`: trace-shaped payload for later MLflow GenAI evaluation.
+
+This is not yet an autonomous assistant. It retrieves evidence and builds a deterministic brief so the team can validate retrieval quality before adding an LLM.
+
+Optional MLflow starter logging:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_dev_env.ps1 -InstallGenAiDeps
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?" -LogMlflow
+```
+
+The MLflow run logs the query, retrieved chunk count and local artifacts to `MLFLOW_EXPERIMENT_NAME`. Full MLflow GenAI tracing and scorer-based evaluation should be added when an LLM-generated response is introduced.
+
+## 11. Publish to Neo4j
 
 Check AuraDB connectivity:
 
@@ -251,7 +282,7 @@ RETURN path
 LIMIT 25;
 ```
 
-## 11. Move from sample metadata to customer metadata
+## 12. Move from sample metadata to customer metadata
 
 Create or select a governed landing volume:
 
@@ -299,7 +330,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
 ```
 
-## 12. Known first-run fixes
+## 13. Known first-run fixes
 
 Issue: `OSError: [Errno 5] Input/output error` while reading files under `/Workspace/Users/.../.bundle/.../files/samples/legacy_metadata`.
 
@@ -337,7 +368,7 @@ Cause: Git Bash path conversion rewrites `/api/...` as a Windows path.
 
 Fix: Vector Search Bash scripts export `MSYS_NO_PATHCONV=1` and `MSYS2_ARG_CONV_EXCL=*`.
 
-## 13. Decide next phase
+## 14. Decide next phase
 
 After the first successful customer metadata run:
 

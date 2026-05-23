@@ -15,10 +15,11 @@ The customer does not need an existing metadata framework. The repo provides the
 5. Review the generated summary, priority matrix, dependency graph, risk register, target blueprint and data quality plan.
 6. Publish graph outputs to Neo4j for visual impact analysis.
 7. Index artifacts with Databricks Vector Search for semantic discovery.
-8. Use MLflow when generated recommendations, RAG or assistant workflows are introduced.
-9. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
+8. Use the RAG/search utility to ask migration questions over the indexed corpus.
+9. Use MLflow when generated recommendations or assistant workflows are introduced.
+10. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
 
-The first delivery focuses on steps 1 to 5. Steps 6 to 9 are activated after the first Databricks outputs are trusted and credentials are approved.
+The first Databricks run proves the assessment backbone. Graph, search and RAG/search run from the same outputs once credentials and security approval are in place.
 
 Before positioning the accelerator, review `docs/00_PRODUCT_POSITIONING.md`. It defines where this product fits, when existing tools are better and how to decide between federation, ingestion, external tables and volumes.
 
@@ -35,7 +36,7 @@ For Neo4j, Vector Search, RAG, MLflow and Model Serving planning, use `docs/05_A
 | ADF/Synapse/notebooks/SQL | Metadata landing folders | Drop exported files into the expected folders. |
 | SQL Server | Export CSV/JSON or approved direct access | Start with export-only discovery unless network and secrets are already approved. |
 | Neo4j | `.env` locally, secrets for enterprise | Publish the graph after the Databricks Delta outputs are trusted. |
-| Vector Search and MLflow | Advanced phase config | Add after artifact outputs, graph model and security review are stable. |
+| Vector Search, RAG and MLflow | `.env`, Databricks resources and MLflow experiment | Use after `gold.semantic_legacy_documents` exists and indexing is approved. |
 
 ## Metadata landing contract
 
@@ -142,6 +143,7 @@ To activate semantic search after `gold.semantic_legacy_documents` exists:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\create_vector_search_dev.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which assets should be migrated first?"
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which assets should be migrated first?"
 ```
 
 The dev index uses `chunk_id` as primary key, `chunk_text` as the embedding source, `databricks-qwen3-embedding-0-6b` as the embedding endpoint and `TRIGGERED` sync mode.

@@ -4,6 +4,10 @@ This document explains the product architecture, the Databricks resources that a
 
 ## Architecture Layers
 
+![Modern Migration Accelerator architecture layers](assets/architecture_layers.png)
+
+The image is the quick visual map. The Mermaid version below is the editable source view for the same layers.
+
 ```mermaid
 flowchart LR
     A[Legacy estate\nADF, Synapse, SQL Server, notebooks, SQL, docs] --> B[Metadata landing\nUnity Catalog Volume]
@@ -42,8 +46,8 @@ flowchart LR
 | --- | --- |
 | Embedding model endpoint | Converts `chunk_text` into vectors. Dev uses `databricks-qwen3-embedding-0-6b`. |
 | Vector Search endpoint | Serves the vector index for retrieval queries. Dev uses `mma-vector-search-dev`. |
-| RAG workflow | Future layer that retrieves relevant chunks and asks an LLM to answer migration questions. |
-| MLflow | Future tracing/evaluation layer for prompts, retrieved context, generated responses and human review. |
+| RAG/search workflow | Current starter retrieves relevant chunks and writes a grounded brief; later it can call an LLM. |
+| MLflow | Current starter can log retrieval artifacts; later GenAI tracing/evaluation covers prompts, context, responses and human review. |
 | Model Serving / AI Gateway | Future interactive serving layer if the accelerator exposes an assistant endpoint. |
 
 ## Databricks UI Map
@@ -118,6 +122,7 @@ Databricks also creates internal service resources for Vector Search, such as a 
 | `scripts/run_semantic_index_prep_dev.sh` | Run the semantic corpus preparation job. |
 | `scripts/create_vector_search_dev.*` | Create/sync the dev Vector Search endpoint and index. |
 | `scripts/query_vector_search_dev.*` | Query the Vector Search index with a natural-language question. |
+| `scripts/rag_search_dev.*` | Query Vector Search, build a grounded retrieval brief and optionally log a starter MLflow run. |
 | `scripts/publish_neo4j_graph.*` | Publish the normalized asset and dependency graph to Neo4j AuraDB. |
 | `scripts/verify_neo4j_graph.*` | Verify the latest Neo4j graph publication. |
 | `scripts/query_sqlserver_fixture.*` | Inspect the local SQL Server fixture without SSMS. |
@@ -138,8 +143,9 @@ Databricks also creates internal service resources for Vector Search, such as a 
 8. Run the target demo.
 9. Prepare semantic chunks.
 10. Create and query the Vector Search index.
-11. Publish to Neo4j.
-12. Add RAG and MLflow-backed workflows after retrieval behavior is trusted.
+11. Build a RAG-ready retrieval brief from Vector Search.
+12. Publish to Neo4j.
+13. Add generated answers, MLflow GenAI evaluation and serving after retrieval behavior is trusted.
 
 ## Metadata Modes
 
@@ -189,11 +195,12 @@ Confirmed working:
 - Neo4j AuraDB graph publishing and verification.
 - Semantic chunk table generation.
 - Databricks Vector Search endpoint, Delta Sync hybrid index and query scripts.
+- RAG-ready search utility that writes local evidence, answer brief and trace JSON.
 
 Remaining product hardening:
 
-- Add a small RAG/search utility on top of Vector Search.
-- Add MLflow tracing and evaluation once generated answers are introduced.
+- Add LLM-generated answers on top of the retrieval brief.
+- Promote local trace JSON to MLflow GenAI tracing and evaluation once generated answers are introduced.
 - Add Databricks secret scope setup for enterprise credentials.
 - Add customer-specific CI/CD only when the target toolchain is known.
 - Add richer source-specific extractors as real customer artifacts reveal gaps.
