@@ -10,11 +10,7 @@ This fixture is for local preparation only. It does not replace the Databricks F
 
 ## Start the fixture
 
-Create `.env` from `.env.example`, then set a local SQL Server password:
-
-```bash
-MSSQL_SA_PASSWORD=ChangeThis_Password_12345
-```
+Create `.env` from `.env.example`, then set the local SQL Server password variable there. Do not commit `.env`.
 
 Start and seed SQL Server:
 

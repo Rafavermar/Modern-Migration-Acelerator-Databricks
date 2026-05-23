@@ -19,7 +19,7 @@ Before positioning the accelerator, review `docs/00_PRODUCT_POSITIONING.md`. It 
 
 For the first real Databricks execution, follow `docs/02_FIRST_RUN_RUNBOOK.md`. For customer discovery, use `contracts/customer_intake_checklist.md`.
 
-For Vector Search, RAG, MLflow, Model Serving and Neo4j planning, use `docs/05_ADVANCED_CAPABILITIES.md`. These are staged extensions, not first-run requirements.
+For Neo4j, Vector Search, RAG, MLflow and Model Serving planning, use `docs/05_ADVANCED_CAPABILITIES.md`. These are part of the full solution and are activated after the first Databricks run is trusted.
 
 ## Metadata landing contract
 
@@ -62,9 +62,9 @@ The current MVP parser supports these file families:
 
 Future phases can add richer source-specific extractors, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
 
-## How to read MVP results
+## How to read first-run results
 
-Neo4j and Vector Search are optional because the MVP is consumed directly in Databricks.
+The first run is consumed directly in Databricks. Neo4j and Vector Search enrich the same outputs after credentials and security setup are ready.
 
 Use these Delta tables first:
 
@@ -84,7 +84,7 @@ Interpretation flow:
 5. Confirm target pattern in `gold.target_databricks_blueprint`.
 6. Use `gold.data_quality_plan` as the validation backlog.
 
-Neo4j later makes graph exploration more visual. Vector Search later makes discovery semantic. Neither is required to interpret the MVP outputs.
+Neo4j makes graph exploration visual. Vector Search makes discovery semantic. Both build on these Delta outputs.
 
 ## What the customer provides
 
