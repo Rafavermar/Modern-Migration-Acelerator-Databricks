@@ -248,6 +248,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question 
 
 The MLflow run logs the query, retrieved chunk count and local artifacts to `MLFLOW_EXPERIMENT_NAME`. Full MLflow GenAI tracing and scorer-based evaluation should be added when an LLM-generated response is introduced.
 
+Where to see it:
+
+- Without `-LogMlflow`: outputs are local files under `local_outputs/rag/`.
+- With `-LogMlflow`: open Databricks `Experiments`, then the experiment from `MLFLOW_EXPERIMENT_NAME`.
+- Full GenAI traces and evaluation runs appear later, after an LLM-backed workflow is instrumented.
+
 ## 11. Publish to Neo4j
 
 Check AuraDB connectivity:

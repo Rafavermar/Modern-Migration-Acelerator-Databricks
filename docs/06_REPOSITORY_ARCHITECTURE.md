@@ -64,6 +64,8 @@ Use this map when validating the workspace manually.
 | Vector index sync | Vector index page > `Overview` > `Data Ingest` | `Sync now` for triggered sync |
 | Vector Search endpoint | CLI/API, and Vector Search index details | Endpoint `mma-vector-search-dev` |
 | Embedding model endpoint | AI Gateway / Foundation Model endpoints, depending workspace UI and filters | `databricks-qwen3-embedding-0-6b` |
+| RAG/search brief | Local repo output unless MLflow logging is enabled | `local_outputs/rag/latest_answer.md`, `latest_search.json`, `latest_trace.json` |
+| MLflow starter run | `Experiments` | Experiment from `MLFLOW_EXPERIMENT_NAME`, default `/Shared/modern-migration-accelerator` |
 
 Do not expect `mma-vector-search-dev` to appear under `AI/ML > Serving` as a normal user-created serving endpoint. Vector Search endpoints are managed separately from Model Serving endpoints. The index is visible and governed in Unity Catalog. The endpoint is easiest to verify with:
 
@@ -73,6 +75,8 @@ databricks --profile <profile> vector-search-indexes get-index migration_acceler
 ```
 
 If you are using PowerShell or Git Bash scripts from this repo, they load `DATABRICKS_PROFILE` from `.env`.
+
+The current RAG/search utility is a script workflow, not a Databricks serving endpoint. It becomes visible in Databricks UI only when `-LogMlflow` is used, because the query, brief and trace JSON are then logged as MLflow artifacts.
 
 ## Databricks Resources
 

@@ -260,6 +260,13 @@ Programmatic query options:
 - Databricks SQL: `vector_search()` when enabled in the target workspace.
 - Python SDK: useful later for notebooks or a served app.
 
+RAG/search UI visibility:
+
+- The current RAG/search layer is not a Databricks UI object by itself.
+- The script writes local reviewer outputs under `local_outputs/rag/`.
+- If `-LogMlflow` is enabled, the same outputs are visible as artifacts in the configured Databricks MLflow experiment.
+- A future assistant endpoint would appear under Model Serving or AI Gateway only after it is explicitly packaged and deployed.
+
 Interpretation:
 
 - A result is evidence, not a final recommendation.
@@ -318,6 +325,11 @@ Where to see it in Databricks:
 - `Experiments` for MLflow runs and artifacts.
 - Evaluation runs after `mlflow.genai.evaluate()` is introduced.
 - Traces once the RAG function or assistant endpoint is instrumented.
+
+Current UI state:
+
+- `scripts/rag_search_dev.ps1 -LogMlflow` creates a standard MLflow run with artifacts.
+- Full GenAI trace spans and evaluation runs are not created yet; they start when the workflow calls an LLM and is instrumented with MLflow GenAI tracing.
 
 Pause implementation if:
 

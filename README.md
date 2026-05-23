@@ -419,6 +419,8 @@ This writes:
 
 The starter utility does retrieval and grounded summarization only. Add `-LogMlflow` after installing `pip install -e .[genai]` to log the run artifacts to the configured MLflow experiment.
 
+RAG/search itself is not a Databricks UI object yet. Vector Search is visible in `Catalog`; MLflow artifacts are visible in `Experiments` only when `-LogMlflow` is used.
+
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
 
 ## CI/CD readiness
