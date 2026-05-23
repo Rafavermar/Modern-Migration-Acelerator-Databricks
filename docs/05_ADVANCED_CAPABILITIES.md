@@ -115,6 +115,17 @@ Role in the solution:
 - `rag_search_dev.*` converts raw search results into a reviewer-friendly evidence brief.
 - A later assistant should retrieve first, generate second, and log/evaluate every answer.
 
+What the RAG/search command does:
+
+1. Reads `.env` for `DATABRICKS_PROFILE`, catalog, index name and output path.
+2. Calls the Databricks Vector Search REST API against `semantic_legacy_documents_vs`.
+3. Retrieves the most relevant chunks for the question using `HYBRID` search.
+4. Parses returned columns such as `asset_name`, `risk_level`, `review_priority`, `target_pattern` and `source_path`.
+5. Builds `latest_answer.md` locally as a deterministic retrieval brief.
+6. Writes `latest_search.json` and `latest_trace.json` for review and future MLflow evaluation.
+
+It does not sort the whole estate by risk. It retrieves relevant evidence for the question. If returned chunks contain `p1` or high-risk assets, the brief highlights them first. It does not call an LLM yet.
+
 Terminology:
 
 | Term | Meaning in this project |
@@ -301,6 +312,13 @@ Current starter:
 - Experiment: `MLFLOW_EXPERIMENT_NAME`, default `/Shared/modern-migration-accelerator`.
 - Script: `scripts/rag_search_dev.ps1 -LogMlflow`.
 - Logged artifacts: search JSON, retrieval brief and trace JSON.
+
+What the two MLflow commands do:
+
+- `setup_dev_env.ps1 -InstallGenAiDeps` installs the optional `mlflow[databricks]` dependency into the local virtual environment.
+- `rag_search_dev.ps1 -LogMlflow` runs the same retrieval brief workflow and then logs params, metric `retrieved_chunks` and artifacts to the configured MLflow experiment.
+
+This is starter MLflow Tracking. It is not full MLflow GenAI tracing yet because no LLM call exists in the workflow.
 
 Trace and evaluate when generated answers exist:
 

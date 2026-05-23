@@ -76,6 +76,34 @@ SQL Server:
 - Local Docker fixture for developer tests.
 - Starter metadata extraction query for real customer environments.
 
+## Scoring and priority rules
+
+Risk and priority are calculated by the accelerator. The customer does not need to manually tag every artifact.
+
+Current rule engine:
+
+- Code: `src/modern_migration_accelerator/pipelines/run_accelerator.py`.
+- Risk table: `build_risk_register()`.
+- Priority table: `build_asset_priority_matrix()`.
+- Target pattern table: `build_blueprint()`.
+- Data quality backlog: `build_data_quality_plan()`.
+
+Risk starts from a baseline score and increases when metadata shows:
+
+- high `criticality`;
+- many dependencies;
+- large `row_count`;
+- orchestration or code migration;
+- connection, dataset, external table or security mapping work.
+
+Review priority is derived from risk and dependencies:
+
+- `p1`: `risk_score >= 70` or at least 5 dependencies;
+- `p2`: `risk_score >= 40` or at least 2 dependencies;
+- `p3`: standard review path.
+
+Customers can improve the quality of the scoring by providing richer exports. Useful input fields include `criticality`, `row_count`, `depends_on`, owner, object type, storage location and module definitions. The rules are deterministic and intentionally simple; customer-specific weights can be added later without changing the output model.
+
 ## Extractor boundaries
 
 Extractors are the source-specific adapters that convert raw exports into the common metadata model:

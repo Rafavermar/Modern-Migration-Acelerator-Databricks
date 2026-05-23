@@ -421,6 +421,8 @@ The starter utility does retrieval and grounded summarization only. Add `-LogMlf
 
 RAG/search itself is not a Databricks UI object yet. Vector Search is visible in `Catalog`; MLflow artifacts are visible in `Experiments` only when `-LogMlflow` is used.
 
+Risk and review priority are calculated by the accelerator from metadata such as asset type, dependencies, row counts and criticality. Customers improve scoring by providing richer metadata exports; they do not need to manually tag every artifact before the first run.
+
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
 
 ## CI/CD readiness

@@ -239,6 +239,14 @@ Expected local outputs:
 
 This is not yet an autonomous assistant. It retrieves evidence and builds a deterministic brief so the team can validate retrieval quality before adding an LLM.
 
+How to interpret it:
+
+- The command does not simply sort all artifacts by risk.
+- It asks Vector Search for chunks relevant to the question.
+- Returned chunks may come from raw artifacts or generated gold outputs such as `asset_priority_matrix`, `risk_register`, `data_quality_plan` and `target_databricks_blueprint`.
+- The brief highlights `p1` or high-risk assets when those fields are present in the retrieved chunks.
+- Final migration decisions still come from reviewing the Delta tables and Neo4j graph.
+
 Optional MLflow starter logging:
 
 ```powershell
@@ -247,6 +255,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question 
 ```
 
 The MLflow run logs the query, retrieved chunk count and local artifacts to `MLFLOW_EXPERIMENT_NAME`. Full MLflow GenAI tracing and scorer-based evaluation should be added when an LLM-generated response is introduced.
+
+`setup_dev_env.ps1 -InstallGenAiDeps` only installs optional MLflow dependencies. `-LogMlflow` performs the same RAG/search query and then records the run and artifacts in Databricks MLflow.
 
 Where to see it:
 

@@ -153,6 +153,19 @@ In this project, an extractor means code that turns customer-provided artifacts 
 
 Improving extractors usually means adding support for more real-world source shapes: parameterized ADF expressions, nested activity patterns, customer naming conventions, stored procedure dependencies, Purview exports, Synapse workspace exports or additional SQL dialects. It is usually low to moderate effort when the artifact format is stable and sample files are available. It becomes harder when dependencies only appear at runtime, inside dynamic strings, inside custom frameworks or behind restricted source access.
 
+## Runtime Responsibility Map
+
+| Command or job | Main code | Engine | Output | Where to inspect |
+| --- | --- | --- | --- | --- |
+| `setup_dev_env.*` | `scripts/setup_dev_env.*` | Local Python/pip | `.venv` dependencies | Local terminal |
+| `run_accelerator_dev.sh` | `run_accelerator.py` | Databricks Workflows, serverless Spark | `bronze`, `silver`, `gold`, `control` tables | Databricks `Catalog` |
+| Risk and priority generation | `build_risk_register()`, `build_asset_priority_matrix()` | Python/Spark job logic | `gold.risk_register`, `gold.asset_priority_matrix` | Databricks `Catalog` |
+| `run_semantic_index_prep_dev.sh` | `run_semantic_index_prep.py` | Databricks Workflows, serverless Spark | `gold.semantic_legacy_documents` | Databricks `Catalog` |
+| `create_vector_search_dev.*` | `scripts/create_vector_search_dev.*` | Databricks Vector Search | endpoint and index | Databricks `Catalog`, CLI/API |
+| `rag_search_dev.*` | `src/modern_migration_accelerator/rag_search.py` | Local Python plus Databricks Vector Search API | `local_outputs/rag/*` | Local files; MLflow if `-LogMlflow` |
+| `rag_search_dev.* -LogMlflow` | `rag_search.py::log_to_mlflow()` | MLflow Tracking | run params, metric and artifacts | Databricks `Experiments` |
+| `publish_neo4j_graph.*` | `neo4j_graph.py` | Local Python plus Neo4j driver | graph nodes and relationships | Neo4j Aura Query/Explore |
+
 ## Execution Order
 
 1. Configure `.env`.
