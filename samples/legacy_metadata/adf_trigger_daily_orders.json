@@ -1,0 +1,33 @@
+{
+  "name": "tr_daily_orders",
+  "type": "Microsoft.DataFactory/factories/triggers",
+  "properties": {
+    "type": "ScheduleTrigger",
+    "runtimeState": "Started",
+    "typeProperties": {
+      "recurrence": {
+        "frequency": "Day",
+        "interval": 1,
+        "startTime": "2025-01-01T03:00:00Z",
+        "timeZone": "UTC"
+      }
+    },
+    "pipelines": [
+      {
+        "pipelineReference": {
+          "referenceName": "pl_ingest_customer_orders",
+          "type": "PipelineReference"
+        },
+        "parameters": {
+          "load_date": "@formatDateTime(trigger().scheduledTime, 'yyyy-MM-dd')"
+        }
+      },
+      {
+        "pipelineReference": {
+          "referenceName": "pl_customer_master_refresh",
+          "type": "PipelineReference"
+        }
+      }
+    ]
+  }
+}

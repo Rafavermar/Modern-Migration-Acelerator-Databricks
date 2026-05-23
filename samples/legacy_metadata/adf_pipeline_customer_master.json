@@ -1,0 +1,51 @@
+{
+  "name": "pl_customer_master_refresh",
+  "properties": {
+    "folder": {
+      "name": "customer"
+    },
+    "annotations": [
+      "high"
+    ],
+    "activities": [
+      {
+        "name": "run_synapse_customer_notebook",
+        "type": "SynapseNotebook",
+        "inputs": [
+          {
+            "referenceName": "ds_adls_customers_raw",
+            "type": "DatasetReference"
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "ds_synapse_dim_customer",
+            "type": "DatasetReference"
+          }
+        ],
+        "typeProperties": {
+          "notebook": {
+            "referenceName": "nb_customer_features",
+            "type": "NotebookReference"
+          }
+        }
+      },
+      {
+        "name": "refresh_serverless_views",
+        "type": "SqlServerStoredProcedure",
+        "inputs": [
+          {
+            "referenceName": "ds_synapse_external_customers",
+            "type": "DatasetReference"
+          }
+        ],
+        "outputs": [
+          {
+            "referenceName": "ds_synapse_customer_reporting",
+            "type": "DatasetReference"
+          }
+        ]
+      }
+    ]
+  }
+}

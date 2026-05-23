@@ -1,0 +1,77 @@
+{
+  "asset_types": {
+    "adf_pipeline": {
+      "domain": "orchestration",
+      "description": "Azure Data Factory or Synapse pipeline definition"
+    },
+    "adf_activity": {
+      "domain": "orchestration",
+      "description": "Activity inside an ADF or Synapse pipeline"
+    },
+    "adf_dataset": {
+      "domain": "dataset",
+      "description": "ADF dataset abstraction used by activities"
+    },
+    "adf_linked_service": {
+      "domain": "connection",
+      "description": "ADF linked service or connection definition"
+    },
+    "adf_trigger": {
+      "domain": "schedule",
+      "description": "ADF trigger that starts one or more pipelines"
+    },
+    "adf_data_object": {
+      "domain": "data_object",
+      "description": "Table-like object referenced by an ADF dataset"
+    },
+    "adf_storage_path": {
+      "domain": "storage",
+      "description": "File or folder path referenced by an ADF dataset"
+    },
+    "synapse_table": {
+      "domain": "data_object",
+      "description": "Synapse dedicated SQL table"
+    },
+    "synapse_view": {
+      "domain": "data_object",
+      "description": "Synapse view"
+    },
+    "synapse_external_table": {
+      "domain": "data_object",
+      "description": "Synapse serverless external table backed by lake files"
+    },
+    "synapse_serverless_database": {
+      "domain": "database",
+      "description": "Synapse serverless SQL database"
+    },
+    "synapse_notebook": {
+      "domain": "code",
+      "description": "Synapse notebook export"
+    },
+    "sql_script": {
+      "domain": "code",
+      "description": "Legacy SQL script, procedure or DDL artifact"
+    }
+  },
+  "relationship_types": {
+    "orchestrates": "A parent orchestration object invokes a child step",
+    "triggers": "A trigger starts a pipeline",
+    "reads": "An activity or code asset reads a dataset or object",
+    "writes": "An activity or code asset writes a dataset or object",
+    "uses_connection": "A dataset or task uses a connection object",
+    "points_to": "A dataset references a physical table or storage path",
+    "depends_on": "An asset depends on another asset",
+    "references": "Code references an object by name"
+  },
+  "sensitivity_policy": {
+    "redacted_metadata_keys": [
+      "password",
+      "secret",
+      "token",
+      "key",
+      "connectionString",
+      "accountKey",
+      "sasToken"
+    ]
+  }
+}
