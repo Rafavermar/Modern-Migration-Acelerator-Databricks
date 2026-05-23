@@ -9,13 +9,13 @@ variables:
     description: Unity Catalog catalog used for MVP Delta outputs.
     default: migration_accelerator_dev
   source_root:
-    description: Legacy metadata source folder. Defaults to bundle sample files.
-    default: ${workspace.file_path}/samples/legacy_metadata
+    description: Legacy metadata source folder. Defaults to demo metadata uploaded to a Unity Catalog volume.
+    default: /Volumes/migration_accelerator_dev/landing/legacy_metadata/demo
   spark_version:
-    description: Databricks Runtime version for the MVP job cluster.
+    description: Reserved for customer workspaces that replace serverless jobs with classic job clusters.
     default: 15.4.x-scala2.12
   node_type_id:
-    description: Small full Databricks trial node type. Override if unavailable in your workspace.
+    description: Reserved for customer workspaces that replace serverless jobs with classic job clusters.
     default: Standard_DS3_v2
 
 targets:

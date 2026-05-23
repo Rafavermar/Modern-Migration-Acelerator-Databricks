@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
-SRC_ROOT = Path(__file__).resolve().parents[2]
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
 
-from modern_migration_accelerator.pipelines.run_accelerator import quote_identifier, table_name
+def quote_identifier(identifier: str) -> str:
+    escaped = identifier.replace("`", "``")
+    return f"`{escaped}`"
+
+
+def table_name(catalog: str, schema: str, table: str) -> str:
+    return ".".join(quote_identifier(part) for part in (catalog, schema, table))
 
 
 def get_spark():
@@ -28,6 +30,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    print(f"Starting target demo catalog={args.catalog} gold_schema={args.gold_schema} demo_schema={args.demo_schema}")
     spark = get_spark()
 
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {quote_identifier(args.catalog)}.{quote_identifier(args.demo_schema)}")
@@ -62,7 +65,12 @@ def main() -> None:
     demo.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(
         target_table
     )
+    print(f"Target demo wrote table={target_table}")
 
 
-if __name__ == "__main__":
+if (
+    __name__ == "__main__"
+    or "filename" in globals()
+    or str(sys.argv[0]).replace("\\", "/").endswith("/run_target_demo.py")
+):
     main()

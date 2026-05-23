@@ -7,8 +7,8 @@ The solution parses legacy metadata, normalizes assets, builds a dependency grap
 ## How it works
 
 1. Configure the repo once for a Databricks Full Trial or full workspace.
-2. Run with the included sample estate to prove the platform path.
-3. Replace the sample folder with customer exports from ADF, Synapse, SQL Server, notebooks, SQL scripts and documentation.
+2. Run with the included sample estate copied to a Unity Catalog volume to prove the platform path.
+3. Point `LEGACY_METADATA_SOURCE_ROOT` to customer exports from ADF, Synapse, SQL Server, notebooks, SQL scripts and documentation.
 4. Run the bundle again to produce Delta outputs for assessment, graph exploration and migration planning.
 5. Publish the graph to Neo4j and index artifacts with Databricks Vector Search when the first Delta outputs are trusted.
 
@@ -22,12 +22,13 @@ Included now:
 - Manual validation, deployment and run scripts.
 - Sample legacy metadata for a first Databricks run.
 - Local SQL Server Docker fixture for repeatable legacy metadata extraction tests.
+- Self-contained serverless Python tasks for reliable Databricks execution.
 - Python/Spark pipeline for metadata normalization, graph-ready Delta outputs and gold assessment outputs.
 - Delta outputs for bronze, silver, gold and control layers.
 
 Full solution technologies:
 
-- Databricks Workflows and Delta tables for the assessment backbone.
+- Databricks Workflows on serverless compute and Delta tables for the assessment backbone.
 - Neo4j AuraDB for graph exploration and impact analysis.
 - Databricks Vector Search.
 - RAG over legacy artifacts and generated blueprints.
@@ -103,7 +104,7 @@ Then set this in `.env`:
 
 ```bash
 DATABRICKS_PROFILE=mma-fulltrial
-DATABRICKS_WORKSPACE_ID=7474660420173503
+DATABRICKS_WORKSPACE_ID=<workspace-id>
 DATABRICKS_CATALOG=migration_accelerator_dev
 ```
 
@@ -115,12 +116,12 @@ The Bash scripts load `.env` without shell-evaluating secret values, so password
 For Neo4j AuraDB, put the values in local `.env`:
 
 ```bash
-NEO4J_URI=neo4j+s://9c447469.databases.neo4j.io
+NEO4J_URI=<neo4j+s://host.databases.neo4j.io>
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=<paste locally only>
 NEO4J_DATABASE=neo4j
-AURA_INSTANCEID=9c447469
-AURA_INSTANCENAME=mma-graph-dev
+AURA_INSTANCEID=<aura-instance-id>
+AURA_INSTANCENAME=<aura-instance-name>
 ```
 
 Install the graph dependency and verify connectivity:
@@ -218,8 +219,9 @@ Before the first full run, have these ready:
 
 - Databricks workspace URL and CLI authentication.
 - Unity Catalog permissions to create or use the target catalog and schemas.
-- A small available job cluster node type. The default is `Standard_DS3_v2`; override `DATABRICKS_NODE_TYPE_ID` if your workspace uses another node.
 - Legacy metadata exports, or use the included sample files for the first smoke test.
+
+The default bundle jobs use Databricks serverless compute and self-contained Python script tasks. Customer workspaces can replace this with classic job clusters if their policies require it.
 
 Run the non-deploying preflight first:
 
@@ -233,7 +235,13 @@ Or with Git Bash:
 bash scripts/preflight_full_trial.sh
 ```
 
-For real metadata, upload files to a Unity Catalog volume and set:
+For the demo run, leave `LEGACY_METADATA_SOURCE_ROOT` empty. `scripts/run_accelerator_dev.sh` creates the `landing` schema and `legacy_metadata` managed volume if needed, then uploads `samples/legacy_metadata` to:
+
+```text
+/Volumes/migration_accelerator_dev/landing/legacy_metadata/demo
+```
+
+For customer metadata, upload files to a Unity Catalog volume and set:
 
 ```bash
 LEGACY_METADATA_SOURCE_ROOT=/Volumes/migration_accelerator_dev/landing/legacy_metadata
@@ -272,11 +280,16 @@ Deploy the dev bundle:
 bash scripts/deploy_dev.sh
 ```
 
+This also prepares the Unity Catalog landing volume and uploads runtime Python scripts under `/Volumes/<catalog>/landing/legacy_metadata/runtime`.
+
 Run the accelerator:
 
 ```bash
 bash scripts/run_accelerator_dev.sh
 ```
+
+If `LEGACY_METADATA_SOURCE_ROOT` is empty, this command first refreshes the demo metadata under `/Volumes/<catalog>/landing/legacy_metadata/demo`. If it is set, the job reads the customer landing path and does not upload samples.
+If `local_outputs/legacy_metadata` exists from the SQL Server fixture, it is uploaded into the same demo metadata root.
 
 Create the target demo table from the generated blueprint:
 
@@ -308,6 +321,7 @@ Read these in order:
 - `docs/00_PRODUCT_POSITIONING.md`
 - `docs/01_CUSTOMER_IMPLEMENTATION.md`
 - `docs/02_FIRST_RUN_RUNBOOK.md`
+- `docs/06_REPOSITORY_ARCHITECTURE.md`
 - `contracts/customer_intake_checklist.md`
 - `docs/03_METADATA_FRAMEWORK.md`
 - `docs/04_LOCAL_SQLSERVER_FIXTURE.md`

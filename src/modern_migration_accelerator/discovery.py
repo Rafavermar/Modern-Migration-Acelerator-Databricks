@@ -5,6 +5,7 @@ from pathlib import Path
 
 
 SUPPORTED_EXTENSIONS = {".csv", ".ipynb", ".json", ".sql"}
+SPARK_FILE_PREFIXES = ("dbfs:/", "/Volumes/", "abfss://", "wasbs://", "s3://", "gs://")
 
 
 @dataclass(frozen=True)
@@ -16,6 +17,20 @@ class TextDocument:
 
 def load_text_documents(source_root: str, spark=None) -> list[TextDocument]:
     """Load supported metadata files from local/workspace files or cloud paths."""
+    normalized_root = source_root.rstrip("/")
+
+    if normalized_root.startswith("/Workspace/"):
+        raise ValueError(
+            "Workspace Files are for bundle code, not metadata input. "
+            "Upload metadata to /Volumes/<catalog>/landing/legacy_metadata/demo for dev "
+            "or another Unity Catalog volume path for customer runs."
+        )
+
+    if normalized_root.startswith(SPARK_FILE_PREFIXES):
+        if spark is None:
+            raise ValueError(f"spark is required to read metadata source: {source_root}")
+        return _load_text_documents_with_spark(normalized_root, spark)
+
     root = Path(source_root)
     if root.exists():
         documents: list[TextDocument] = []
@@ -33,6 +48,10 @@ def load_text_documents(source_root: str, spark=None) -> list[TextDocument]:
     if spark is None:
         raise FileNotFoundError(f"Metadata source root does not exist: {source_root}")
 
+    return _load_text_documents_with_spark(source_root, spark)
+
+
+def _load_text_documents_with_spark(source_root: str, spark) -> list[TextDocument]:
     dataframe = (
         spark.read.format("binaryFile")
         .option("recursiveFileLookup", "true")

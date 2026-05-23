@@ -18,7 +18,7 @@ Use this checklist before the first real customer metadata run.
 - CLI profile configured.
 - Target catalog name agreed.
 - Permissions confirmed for catalog, schema and Delta table creation.
-- Job cluster node type confirmed.
+- Serverless jobs allowed, or classic job cluster policy confirmed.
 
 ## Neo4j
 

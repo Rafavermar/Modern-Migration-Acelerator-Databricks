@@ -4,48 +4,38 @@ resources:
       name: ${bundle.name}-${bundle.target}-accelerator
       description: Parse legacy metadata, build dependency graph, risk register, blueprint and DQ plan.
       max_concurrent_runs: 1
-      job_clusters:
-        - job_cluster_key: mvp_single_node
-          new_cluster:
-            spark_version: ${var.spark_version}
-            node_type_id: ${var.node_type_id}
-            num_workers: 0
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: local[*, 4]
-            custom_tags:
-              ResourceClass: SingleNode
       tasks:
         - task_key: parse_analyze_blueprint
-          job_cluster_key: mvp_single_node
+          environment_key: default
+          max_retries: 2
+          min_retry_interval_millis: 10000
           spark_python_task:
-            python_file: ../src/modern_migration_accelerator/pipelines/run_accelerator.py
+            python_file: dbfs:/Volumes/${var.catalog}/landing/legacy_metadata/runtime/run_accelerator.py
             parameters:
               - --catalog
               - ${var.catalog}
               - --source-root
               - ${var.source_root}
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "2"
 
     target_demo:
       name: ${bundle.name}-${bundle.target}-target-demo
       description: Create a small target migration plan table from the generated blueprint.
       max_concurrent_runs: 1
-      job_clusters:
-        - job_cluster_key: mvp_single_node
-          new_cluster:
-            spark_version: ${var.spark_version}
-            node_type_id: ${var.node_type_id}
-            num_workers: 0
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: local[*, 4]
-            custom_tags:
-              ResourceClass: SingleNode
       tasks:
         - task_key: create_target_demo
-          job_cluster_key: mvp_single_node
+          environment_key: default
+          max_retries: 2
+          min_retry_interval_millis: 10000
           spark_python_task:
-            python_file: ../src/modern_migration_accelerator/pipelines/run_target_demo.py
+            python_file: dbfs:/Volumes/${var.catalog}/landing/legacy_metadata/runtime/run_target_demo.py
             parameters:
               - --catalog
               - ${var.catalog}
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "2"

@@ -139,6 +139,21 @@ Activate them when there is a clear workflow:
 
 Do not activate them before credentials, permissions, security review and first Databricks outputs are ready.
 
+## ROI and Cost Lens
+
+The ROI comes from reducing manual discovery time, not from replacing engineers.
+
+- Time: days instead of weeks to create an initial asset inventory, dependency map, risk register and target blueprint.
+- Effort: analysts review generated priorities instead of manually reconciling ADF, Synapse, SQL Server, notebooks and SQL files from scratch.
+- Cost: demo runs use Databricks Full Trial credits and Neo4j AuraDB trial capacity. Paid costs come from Databricks serverless job DBUs, Vector Search units, Model Serving usage, Neo4j AuraDB capacity and cloud storage.
+- Governance: every customer estimate must use measured run duration, asset count, selected cloud, region and live vendor pricing before being quoted.
+
+Current reference points:
+
+- Databricks pricing: https://www.databricks.com/product/pricing
+- Databricks serverless and Vector Search billing units: https://docs.databricks.com/aws/en/resources/pricing
+- Neo4j AuraDB pricing: https://neo4j.com/pricing/
+
 ## Bottom Line
 
 The accelerator is strongest as a plug-and-play Databricks migration assessment layer.

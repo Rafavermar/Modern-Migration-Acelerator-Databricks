@@ -28,10 +28,10 @@ fi
 echo "OK: DATABRICKS_CATALOG=$DATABRICKS_CATALOG"
 
 if [ -z "${DATABRICKS_NODE_TYPE_ID:-}" ]; then
-  echo "DATABRICKS_NODE_TYPE_ID is required." >&2
-  exit 1
+  echo "OK: DATABRICKS_NODE_TYPE_ID is not set. The default bundle jobs use serverless compute."
+else
+  echo "OK: DATABRICKS_NODE_TYPE_ID=$DATABRICKS_NODE_TYPE_ID"
 fi
-echo "OK: DATABRICKS_NODE_TYPE_ID=$DATABRICKS_NODE_TYPE_ID"
 
 databricks_cmd=(databricks)
 if [ -n "${DATABRICKS_PROFILE:-}" ]; then

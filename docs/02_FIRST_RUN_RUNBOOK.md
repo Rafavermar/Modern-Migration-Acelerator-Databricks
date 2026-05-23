@@ -32,25 +32,30 @@ Then update `.env`:
 
 ```bash
 DATABRICKS_PROFILE=mma-fulltrial
-DATABRICKS_WORKSPACE_ID=7474660420173503
+DATABRICKS_WORKSPACE_ID=<workspace-id>
 DATABRICKS_BUNDLE_ENV=dev
 DATABRICKS_CATALOG=migration_accelerator_dev
-DATABRICKS_NODE_TYPE_ID=<available-node-type>
 ```
 
-Leave `LEGACY_METADATA_SOURCE_ROOT` empty for the first sample run. The bundle will use sample metadata synced with the project.
+Leave `LEGACY_METADATA_SOURCE_ROOT` empty for the first sample run. The run script will create the `landing` schema and `legacy_metadata` managed volume if needed, then upload `samples/legacy_metadata` to:
+
+```text
+/Volumes/migration_accelerator_dev/landing/legacy_metadata/demo
+```
+
+The bundle jobs use Databricks serverless compute and self-contained Python script tasks by default. No node type is required for the Full Trial workspace.
 
 ## 3. Configure Neo4j locally
 
 Put the AuraDB values in `.env`. Keep the password local only.
 
 ```bash
-NEO4J_URI=neo4j+s://9c447469.databases.neo4j.io
+NEO4J_URI=<neo4j+s://host.databases.neo4j.io>
 NEO4J_USERNAME=neo4j
 NEO4J_PASSWORD=<paste locally only>
 NEO4J_DATABASE=neo4j
-AURA_INSTANCEID=9c447469
-AURA_INSTANCENAME=mma-graph-dev
+AURA_INSTANCEID=<aura-instance-id>
+AURA_INSTANCENAME=<aura-instance-name>
 ```
 
 Install the graph dependency and test the connection:
@@ -70,6 +75,15 @@ bash scripts/validate_bundle.sh
 
 This should succeed before any deployment.
 
+If deploy fails with `openpgp: key expired` while downloading Terraform, update Databricks CLI and log in again:
+
+```powershell
+winget upgrade --id Databricks.DatabricksCLI --exact --source winget --accept-package-agreements --accept-source-agreements
+databricks auth login --host https://<full-trial-workspace-url> --profile mma-fulltrial
+```
+
+The bundle should not use `/Workspace/.../.bundle/.../files` as metadata input. That path is for synced code. Metadata input should be in `/Volumes/<catalog>/landing/legacy_metadata/demo` for demo runs or another Unity Catalog volume path for customer runs.
+
 ## 5. Deploy dev
 
 ```bash
@@ -80,12 +94,21 @@ Expected result:
 
 - Databricks bundle files are synced to the workspace.
 - Two jobs are created: accelerator and target demo.
+- Runtime Python scripts are uploaded to `/Volumes/<catalog>/landing/legacy_metadata/runtime`.
 
 ## 6. Run the accelerator
 
 ```bash
 bash scripts/run_accelerator_dev.sh
 ```
+
+What this does:
+
+- If `LEGACY_METADATA_SOURCE_ROOT` is empty, upload demo files from `samples/legacy_metadata` to `/Volumes/<catalog>/landing/legacy_metadata/demo`.
+- If `local_outputs/legacy_metadata` exists from the SQL Server fixture, upload those files into the same demo root.
+- Start the deployed Databricks job.
+- Read metadata with Spark `binaryFile` from the configured source path.
+- Write control, bronze, silver and gold Delta tables.
 
 Expected Delta outputs:
 
@@ -137,7 +160,45 @@ LEGACY_METADATA_SOURCE_ROOT=/Volumes/<catalog>/landing/legacy_metadata
 
 Redeploy or rerun with the updated bundle variable.
 
-## 9. Decide next phase
+Put customer artifacts under the same root, for example:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/adf/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/inventory/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/notebooks/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/sql/
+/Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
+```
+
+For SQL Server, the easiest first implementation is export-only discovery: run the approved metadata query in `samples/sqlserver/extract/metadata_inventory.sql`, save the CSV under `sqlserver/inventory/`, then run the accelerator.
+
+## 9. Known first-run fixes
+
+Issue: `OSError: [Errno 5] Input/output error` while reading files under `/Workspace/Users/.../.bundle/.../files/samples/legacy_metadata`.
+
+Cause: Workspace Files are reliable for bundle code but should not be used as the functional metadata landing area for serverless jobs.
+
+Fix: keep code in the bundle, upload metadata to a Unity Catalog volume, and point `source_root` there. Demo runs now use `/Volumes/<catalog>/landing/legacy_metadata/demo` automatically.
+
+Issue: `Public DBFS root is disabled. Access is denied on path: /tmp/...`.
+
+Cause: the workspace blocks public DBFS root, which is common in governed workspaces.
+
+Fix: use Unity Catalog volumes for metadata landing. The scripts now create/use `${DATABRICKS_CATALOG}.landing.legacy_metadata`.
+
+Issue: `No FileSystem for scheme "C"` when using Git Bash on Windows.
+
+Cause: Git Bash path conversion changed `/Volumes/...` into a Windows path before invoking the Databricks CLI.
+
+Fix: the Databricks Bash scripts export `MSYS_NO_PATHCONV=1` and `MSYS2_ARG_CONV_EXCL=*` before calling the CLI.
+
+Issue: intermittent `OSError: [Errno 5] Input/output error` while opening the Python task file under Workspace Files.
+
+Cause: serverless task startup can hit transient Workspace Files reads.
+
+Fix: the jobs execute runtime Python scripts from the Unity Catalog volume instead of `/Workspace/.../.bundle/.../files`.
+
+## 10. Decide next phase
 
 After the first successful customer metadata run:
 
@@ -156,6 +217,5 @@ Stop and fix before continuing if:
 - CLI still points to Free Edition.
 - Unity Catalog is unavailable.
 - You cannot create or access the target catalog.
-- The selected node type is unavailable.
 - The bundle does not validate.
 - The accelerator job cannot write Delta tables.

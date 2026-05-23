@@ -8,7 +8,7 @@ The customer does not need an existing metadata framework. The repo provides the
 
 ## Product operating model
 
-1. Deploy the accelerator bundle to a customer Databricks workspace.
+1. Deploy the accelerator bundle to a customer Databricks workspace with serverless jobs.
 2. Create a governed metadata landing area in Unity Catalog.
 3. Ask the customer to export legacy metadata into that landing area.
 4. Run the accelerator jobs.
@@ -33,6 +33,14 @@ Recommended landing location:
 ```text
 /Volumes/<catalog>/landing/legacy_metadata/
 ```
+
+For demo-only runs, the scripts use:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/demo
+```
+
+Do not use `/Workspace/.../.bundle/.../files` as a metadata landing path. Workspace Files are for bundle code; metadata input belongs in a Unity Catalog volume.
 
 Recommended folders:
 
@@ -66,6 +74,24 @@ The current parser supports these file families:
 - SQL scripts, views, procedures and external table DDL as `.sql`.
 
 Source-specific extractors can become richer over time, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
+
+## Demo vs customer mode
+
+Demo mode:
+
+- Leave `LEGACY_METADATA_SOURCE_ROOT` empty.
+- Run `bash scripts/run_accelerator_dev.sh`.
+- The script uploads `samples/legacy_metadata` to `/Volumes/<catalog>/landing/legacy_metadata/demo`.
+
+Customer mode:
+
+- Export customer artifacts to `/Volumes/<catalog>/landing/legacy_metadata/`.
+- Set `LEGACY_METADATA_SOURCE_ROOT` to that volume path.
+- Validate, deploy and run the bundle again.
+
+Only the source path changes. The Databricks jobs, parsers and output tables stay the same.
+
+The scripts also upload runtime Python entrypoints to `/Volumes/<catalog>/landing/legacy_metadata/runtime` so serverless jobs do not depend on reading task code from Workspace Files.
 
 ## How to read first-run results
 
@@ -151,6 +177,8 @@ For a real SQL Server estate, use one of three patterns:
 
 Use export-only discovery first unless the customer already has approved network connectivity and secret handling. It is the lowest-friction and lowest-risk onboarding path.
 
+The local Docker fixture is optional. A customer does not need Docker if they can provide SQL Server metadata exports.
+
 ## Data lake and Synapse external tables
 
 Synapse serverless external tables usually point to files already stored in a lake. The accelerator should capture both sides:
@@ -202,8 +230,9 @@ The accelerator should be plug-and-play for assessment:
 
 - Customer exports metadata to the landing contract.
 - Implementation team configures `.env` or bundle variables.
-- Databricks bundle deploys jobs.
+- Databricks bundle deploys serverless jobs.
 - Jobs generate control, silver and gold Delta outputs.
+- Self-contained serverless Python tasks are the default; classic job clusters are a customer-specific override.
 
 The accelerator should be configurable, not magical, for execution:
 
