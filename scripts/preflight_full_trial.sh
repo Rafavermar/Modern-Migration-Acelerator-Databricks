@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$script_dir/lib/load_env.sh"
 if [ -f .env ]; then
-  set -a
-  . ./.env
-  set +a
+  load_dotenv ".env"
 else
   echo "WARN: .env not found. Copy .env.example to .env before the first Databricks run." >&2
 fi
@@ -28,15 +28,19 @@ fi
 echo "OK: DATABRICKS_CATALOG=$DATABRICKS_CATALOG"
 
 if [ -z "${DATABRICKS_NODE_TYPE_ID:-}" ]; then
-  echo "DATABRICKS_NODE_TYPE_ID is required." >&2
-  exit 1
+  echo "OK: DATABRICKS_NODE_TYPE_ID is not set. The default bundle jobs use serverless compute."
+else
+  echo "OK: DATABRICKS_NODE_TYPE_ID=$DATABRICKS_NODE_TYPE_ID"
 fi
-echo "OK: DATABRICKS_NODE_TYPE_ID=$DATABRICKS_NODE_TYPE_ID"
 
 databricks_cmd=(databricks)
 if [ -n "${DATABRICKS_PROFILE:-}" ]; then
   databricks_cmd+=(--profile "$DATABRICKS_PROFILE")
   echo "OK: DATABRICKS_PROFILE=$DATABRICKS_PROFILE"
+fi
+
+if [ -n "${DATABRICKS_WORKSPACE_ID:-}" ]; then
+  echo "OK: DATABRICKS_WORKSPACE_ID=$DATABRICKS_WORKSPACE_ID"
 fi
 
 if ! "${databricks_cmd[@]}" current-user me --output json >/dev/null; then

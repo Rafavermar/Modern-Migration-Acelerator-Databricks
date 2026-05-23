@@ -29,8 +29,16 @@ docker compose -f docker-compose.yml up -d legacy-sqlserver
 
 $ready = $false
 for ($attempt = 1; $attempt -le 60; $attempt++) {
-    docker exec $container bash -lc 'if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then SQLCMD=/opt/mssql-tools18/bin/sqlcmd; else SQLCMD=/opt/mssql-tools/bin/sqlcmd; fi; "$SQLCMD" -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "SELECT 1"' *> $null
-    if ($LASTEXITCODE -eq 0) {
+    $probeSucceeded = $false
+    try {
+        docker exec $container bash -lc 'if [ -x /opt/mssql-tools18/bin/sqlcmd ]; then SQLCMD=/opt/mssql-tools18/bin/sqlcmd; else SQLCMD=/opt/mssql-tools/bin/sqlcmd; fi; "$SQLCMD" -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "SELECT 1"' *> $null
+        $probeSucceeded = $LASTEXITCODE -eq 0
+    }
+    catch {
+        $probeSucceeded = $false
+    }
+
+    if ($probeSucceeded) {
         $ready = $true
         break
     }

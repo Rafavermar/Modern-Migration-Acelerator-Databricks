@@ -1,21 +1,21 @@
 # Advanced Capabilities
 
-The MVP must remain deterministic and useful without Vector Search, GenAI, MLflow, Model Serving or Neo4j.
+The first Databricks run must produce trusted Delta outputs. Neo4j, Vector Search, RAG, MLflow and Model Serving then build on those outputs.
 
-These capabilities should be added only after the first Databricks run produces trusted Delta outputs.
+These capabilities are part of the full solution, but they require the Full Trial workspace, AuraDB credentials, security approval and customer decisions before activation.
 
 ## Phase Order
 
-1. MVP metadata assessment.
-2. Neo4j graph exploration, optional.
+1. Databricks metadata assessment.
+2. Neo4j graph exploration.
 3. Vector Search and semantic legacy search.
 4. RAG over legacy artifacts and generated blueprints.
 5. MLflow tracing and evaluation for GenAI behavior.
-6. Model Serving or agent endpoints, only if users need an interactive assistant.
+6. Model Serving or agent endpoints for interactive assistant workflows.
 
 ## Readiness Gate
 
-Do not start advanced phases until:
+Do not activate these layers until:
 
 - `silver.assets` is trusted.
 - `silver.dependencies` is trusted.
@@ -24,43 +24,77 @@ Do not start advanced phases until:
 - `gold.graph_edges` is useful.
 - `gold.risk_register` is reviewable.
 - `gold.target_databricks_blueprint` is reviewable.
-- Customer security approves indexing legacy documents.
-- A retention and access policy exists for indexed content.
+- Customer security approves graph publishing and indexing legacy documents.
+- A retention and access policy exists for graph and indexed content.
 
 ## Neo4j
 
 Purpose:
 
 - Explore graph impact analysis interactively.
-- Publish `silver.assets`, `silver.dependencies` and `gold.graph_edges` to a graph database.
+- Publish the accelerator asset and dependency model to a graph database.
 - Keep Delta as the source of truth.
 
-Needed later:
+Needed:
 
 - Neo4j URI and database name.
 - Authentication method and secret location.
 - TLS and network path from Databricks.
 - Export mode: read-only graph publishing or bidirectional sync.
 
+Local trial settings:
+
+- AuraDB Professional Trial.
+- 4GB memory when vector optimization is enabled.
+- `neo4j+s://` URI.
+- Password stored only in `.env` locally and later in Databricks secrets.
+
 Initial labels:
 
-- `Asset`
-- `Pipeline`
-- `Notebook`
-- `Table`
-- `ExternalTable`
-- `ServerlessDatabase`
-- `Procedure`
+- `MigrationRun`
+- `MigrationAsset`
+- `SourceSystem`
+- `TargetPattern`
 
 Initial relationships:
 
-- `DEPENDS_ON`
-- `READS`
-- `WRITES`
-- `ORCHESTRATES`
-- `REFERENCES`
+- `INCLUDES_ASSET`
+- `FROM_SOURCE_SYSTEM`
+- `HAS_TARGET_PATTERN`
+- `MIGRATION_DEPENDENCY`
+
+Local publish:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
+```
+
+The publisher reads the same metadata inputs as the demo run: `samples/legacy_metadata` plus `local_outputs/legacy_metadata` when SQL Server metadata has been exported. It enriches each asset with risk, priority, target pattern and DQ counts.
+
+Useful Neo4j Browser queries:
+
+```cypher
+MATCH (r:MigrationRun)-[:INCLUDES_ASSET]->(a:MigrationAsset)
+RETURN r, a
+LIMIT 50;
+```
+
+```cypher
+MATCH path = (a:MigrationAsset)-[:MIGRATION_DEPENDENCY*1..3]->(b:MigrationAsset)
+WHERE a.review_priority = 'p1' OR a.risk_level = 'high'
+RETURN path
+LIMIT 25;
+```
 
 ## Vector Search and RAG
+
+Current base:
+
+- `scripts/run_semantic_index_prep_dev.sh` creates `gold.semantic_legacy_documents`.
+- `chunk_id` is the primary key.
+- `chunk_text` is the text column to embed.
+- Delta Change Data Feed is enabled on the table.
 
 Purpose:
 
@@ -74,20 +108,30 @@ Inputs:
 - `bronze.raw_metadata`
 - `silver.assets`
 - `silver.dependencies`
+- `gold.semantic_legacy_documents`
 - `gold.target_databricks_blueprint`
 - `gold.risk_register`
 - `gold.data_quality_plan`
 - External legacy documentation and notebooks
 
-Future outputs:
+Outputs:
 
-- Chunked legacy artifact Delta table.
+- Chunked legacy artifact and generated-output Delta table.
 - Embedding-ready document view.
 - Databricks Vector Search index.
 - Search notebook or API utility.
-- Optional RAG prompt template.
+- RAG prompt template.
 
-Do not implement if:
+Activation steps:
+
+1. Confirm which artifacts can be indexed.
+2. Run `bash scripts/run_semantic_index_prep_dev.sh`.
+3. Select the embedding model endpoint.
+4. Create the Vector Search endpoint.
+5. Create a Delta Sync index over `gold.semantic_legacy_documents`.
+6. Add a search notebook or API utility.
+
+Pause implementation if:
 
 - The customer forbids indexing source code or documentation.
 - Metadata is too incomplete to produce useful search.
@@ -96,7 +140,7 @@ Do not implement if:
 
 ## MLflow
 
-Use MLflow only if the accelerator introduces GenAI behavior.
+Use MLflow when the accelerator introduces GenAI behavior or generated recommendations.
 
 Track:
 
@@ -108,7 +152,7 @@ Track:
 - Trace spans for RAG or agent workflows.
 - Quality metrics such as groundedness, correctness and completeness.
 
-Do not implement if:
+Pause implementation if:
 
 - The accelerator remains deterministic.
 - Recommendations are generated only by rules and Delta transforms.
@@ -117,9 +161,9 @@ Do not implement if:
 
 ## Model Serving
 
-Use Model Serving only if users need an interactive assistant or recommendation endpoint.
+Use Model Serving when users need an interactive assistant or recommendation endpoint.
 
-Do not use it for the batch MVP. Databricks jobs and Delta outputs are enough for first-run assessment.
+Keep batch assessment in Databricks jobs and Delta outputs. Serving is for interactive workflows.
 
 ## Stop Conditions
 
@@ -133,4 +177,4 @@ Stop advanced work if:
 
 ## Product Principle
 
-Advanced features should enhance the assessment. They should not become mandatory dependencies for running the accelerator.
+Advanced capabilities must enhance the assessment while keeping the first-run Databricks path reliable and repeatable.

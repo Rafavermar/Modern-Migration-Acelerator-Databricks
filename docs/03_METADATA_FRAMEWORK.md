@@ -1,6 +1,6 @@
 # Metadata Framework
 
-The MVP metadata framework is intentionally small. It defines enough structure to make the accelerator useful and extensible without introducing an enterprise metadata platform.
+The metadata framework is intentionally small. It defines enough structure to make the accelerator useful and extensible without introducing an enterprise metadata platform.
 
 ## Core entities
 
@@ -78,4 +78,4 @@ SQL Server:
 
 ## Deliberate non-goals
 
-The MVP does not try to replace enterprise catalogs, scanners or lineage platforms. It creates a lightweight, Databricks-native metadata layer that can be enriched by source-specific extractors and later exported to Neo4j or indexed for semantic search.
+The accelerator does not try to replace enterprise catalogs, scanners or lineage platforms. It creates a lightweight, Databricks-native metadata layer that can be enriched by source-specific extractors, exported to Neo4j and indexed for semantic search.

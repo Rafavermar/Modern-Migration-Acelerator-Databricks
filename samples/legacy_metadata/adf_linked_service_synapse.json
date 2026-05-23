@@ -4,7 +4,9 @@
   "properties": {
     "type": "AzureSqlDW",
     "typeProperties": {
-      "connectionString": "Integrated Security=False;Data Source=synapse-workspace.sql.azuresynapse.net;Initial Catalog=sales;User ID=metadata_reader;Password=do-not-store;"
+      "server": "synapse-workspace.sql.azuresynapse.net",
+      "database": "sales",
+      "authenticationType": "ManagedIdentity"
     },
     "connectVia": {
       "referenceName": "AutoResolveIntegrationRuntime",

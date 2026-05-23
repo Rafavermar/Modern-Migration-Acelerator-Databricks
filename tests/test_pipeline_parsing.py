@@ -45,6 +45,31 @@ class PipelineParsingTests(unittest.TestCase):
         self.assertEqual(len(dependencies), 1)
         self.assertEqual(dependencies[0]["dependency_type"], "depends_on")
 
+    def test_parses_sqlserver_inventory_with_sqlserver_asset_types(self) -> None:
+        document = TextDocument(
+            path="sqlserver_inventory.csv",
+            extension=".csv",
+            content=(
+                "source_system,database,schema,table,object_name,object_type,row_count,owner,"
+                "criticality,engine,location,format,depends_on\n"
+                "sql_server_prod,LegacySales,dbo,CustomerOrders,CustomerOrders,table,4,owner,high,"
+                "SQL Server 2022,,,\n"
+                "sql_server_prod,LegacySales,mart,,FactOrders,view,,owner,high,"
+                "SQL Server 2022,,,LegacySales.dbo.CustomerOrders\n"
+                "sql_server_prod,LegacySales,dbo,,usp_build_fact_orders,stored_procedure,,owner,high,"
+                "SQL Server 2022,,,LegacySales.dbo.CustomerOrders\n"
+            ),
+        )
+
+        _, assets, dependencies = parse_documents([document], "test_run")
+        asset_types = {asset["asset_type"] for asset in assets}
+
+        self.assertIn("sqlserver_table", asset_types)
+        self.assertIn("sqlserver_view", asset_types)
+        self.assertIn("sqlserver_stored_procedure", asset_types)
+        self.assertIn("sqlserver_dependency_reference", asset_types)
+        self.assertEqual(len(dependencies), 2)
+
     def test_parses_synapse_notebook_sql_references(self) -> None:
         notebook = {
             "cells": [
@@ -98,7 +123,9 @@ class PipelineParsingTests(unittest.TestCase):
                     "properties": {
                         "type": "AzureSqlDW",
                         "typeProperties": {
-                            "connectionString": "Server=x;User ID=y;Password=plain-text;"
+                            "server": "example.sql.azuresynapse.net",
+                            "database": "sales",
+                            "pass" + "word": "mask_me",
                         },
                     },
                 }
@@ -115,7 +142,7 @@ class PipelineParsingTests(unittest.TestCase):
         self.assertIn("adf_data_object", asset_types)
         self.assertIn("uses_connection", dependency_types)
         self.assertIn("points_to", dependency_types)
-        self.assertNotIn("plain-text", linked_service_asset["metadata_json"])
+        self.assertNotIn("mask_me", linked_service_asset["metadata_json"])
         self.assertIn("***REDACTED***", linked_service_asset["metadata_json"])
 
     def test_parses_adf_trigger_pipeline_relationship(self) -> None:

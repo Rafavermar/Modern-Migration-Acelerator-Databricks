@@ -8,16 +8,124 @@ import json
 import re
 import sys
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-SRC_ROOT = Path(__file__).resolve().parents[2]
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
+SCRIPT_PATH = globals().get("__file__") or globals().get("filename") or sys.argv[0]
+SUPPORTED_EXTENSIONS = {".csv", ".ipynb", ".json", ".sql"}
+SPARK_FILE_PREFIXES = ("dbfs:/", "/Volumes/", "abfss://", "wasbs://", "s3://", "gs://")
+REFERENCE_PATTERN = re.compile(
+    r"""
+    \b(
+        from
+        |join
+        |into
+        |update
+        |merge\s+into
+        |delete\s+from
+        |truncate\s+table
+    )\s+
+    (?P<identifier>[`"\[\]A-Za-z0-9_.-]+)
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
 
-from modern_migration_accelerator.discovery import TextDocument, load_text_documents
-from modern_migration_accelerator.parsers.sql import extract_sql_references
+
+@dataclass(frozen=True)
+class TextDocument:
+    path: str
+    content: str
+    extension: str
+
+
+def load_text_documents(source_root: str, spark=None) -> list[TextDocument]:
+    normalized_root = source_root.rstrip("/")
+
+    if normalized_root.startswith("/Workspace/"):
+        raise ValueError(
+            "Workspace Files are for bundle code, not metadata input. "
+            "Upload metadata to /Volumes/<catalog>/landing/legacy_metadata/demo for dev "
+            "or another Unity Catalog volume path for customer runs."
+        )
+
+    if normalized_root.startswith(SPARK_FILE_PREFIXES):
+        if spark is None:
+            raise ValueError(f"spark is required to read metadata source: {source_root}")
+        return _load_text_documents_with_spark(normalized_root, spark)
+
+    root = Path(source_root)
+    if root.exists():
+        documents: list[TextDocument] = []
+        for file_path in sorted(root.rglob("*")):
+            if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
+                documents.append(
+                    TextDocument(
+                        path=str(file_path),
+                        content=file_path.read_text(encoding="utf-8"),
+                        extension=file_path.suffix.lower(),
+                    )
+                )
+        return documents
+
+    if spark is None:
+        raise FileNotFoundError(f"Metadata source root does not exist: {source_root}")
+
+    return _load_text_documents_with_spark(source_root, spark)
+
+
+def _load_text_documents_with_spark(source_root: str, spark) -> list[TextDocument]:
+    dataframe = (
+        spark.read.format("binaryFile")
+        .option("recursiveFileLookup", "true")
+        .load(source_root)
+        .select("path", "content")
+    )
+
+    documents = []
+    for row in dataframe.collect():
+        extension = Path(row["path"]).suffix.lower()
+        if extension not in SUPPORTED_EXTENSIONS:
+            continue
+        documents.append(
+            TextDocument(
+                path=row["path"],
+                content=bytes(row["content"]).decode("utf-8"),
+                extension=extension,
+            )
+        )
+    return sorted(documents, key=lambda item: item.path)
+
+
+def strip_sql_comments(sql_text: str) -> str:
+    sql_text = re.sub(r"/\*.*?\*/", " ", sql_text, flags=re.DOTALL)
+    return re.sub(r"--.*?$", " ", sql_text, flags=re.MULTILINE)
+
+
+def normalize_sql_identifier(identifier: str) -> str:
+    cleaned = identifier.strip().strip(";,.()")
+    cleaned = cleaned.replace("[", "").replace("]", "")
+    cleaned = cleaned.replace("`", "").replace('"', "")
+    return re.sub(r"\s+", "", cleaned).lower()
+
+
+def extract_sql_references(sql_text: str) -> list[str]:
+    cleaned_sql = strip_sql_comments(sql_text)
+    references: list[str] = []
+    seen = set()
+
+    for match in REFERENCE_PATTERN.finditer(cleaned_sql):
+        reference = normalize_sql_identifier(match.group("identifier"))
+        if not reference or reference.startswith(("#", "@")):
+            continue
+        if reference in {"select", "values", "with"}:
+            continue
+        if reference not in seen:
+            seen.add(reference)
+            references.append(reference)
+
+    return references
 
 
 def utc_now() -> str:
@@ -66,7 +174,10 @@ def table_name(catalog: str, schema: str, table: str) -> str:
 
 
 def default_source_root() -> str:
-    return str(Path(__file__).resolve().parents[3] / "samples" / "legacy_metadata")
+    script_path = Path(SCRIPT_PATH).resolve()
+    if len(script_path.parents) >= 4:
+        return str(script_path.parents[3] / "samples" / "legacy_metadata")
+    return "samples/legacy_metadata"
 
 
 def safe_object_name(value: str) -> str:
@@ -85,6 +196,15 @@ def as_int(value: Any) -> int | None:
         return int(str(value).replace(",", "").strip())
     except ValueError:
         return None
+
+
+def classify_inventory_source(source_system: str, technology: str) -> tuple[str, str]:
+    value = f"{source_system} {technology}".lower()
+    if any(token in value for token in ("sql_server", "sqlserver", "sql server", "mssql")):
+        return "sqlserver", "SQL Server"
+    if "synapse" in value:
+        return "synapse", "Azure"
+    return normalize_asset_type(source_system) or "legacy_inventory", "Legacy"
 
 
 def add_asset(assets: dict[str, dict[str, Any]], row: dict[str, Any]) -> None:
@@ -706,6 +826,7 @@ def parse_synapse_csv(
 
         source_system = normalized.get("source_system") or "azure_synapse"
         technology = normalized.get("engine") or normalized.get("technology") or "Azure Synapse Analytics"
+        asset_prefix, platform = classify_inventory_source(source_system, technology)
         asset_id = stable_id(source_system, object_type, object_name)
         add_asset(
             assets,
@@ -713,9 +834,9 @@ def parse_synapse_csv(
                 "run_id": run_id,
                 "asset_id": asset_id,
                 "source_system": source_system,
-                "asset_type": f"synapse_{object_type}",
+                "asset_type": f"{asset_prefix}_{object_type}",
                 "asset_name": object_name,
-                "platform": "Azure",
+                "platform": platform,
                 "technology": technology,
                 "raw_path": document.path,
                 "owner": normalized.get("owner"),
@@ -737,9 +858,9 @@ def parse_synapse_csv(
                     "run_id": run_id,
                     "asset_id": dependency_id,
                     "source_system": source_system,
-                    "asset_type": "synapse_dependency_reference",
+                    "asset_type": f"{asset_prefix}_dependency_reference",
                     "asset_name": dependency_name,
-                    "platform": "Azure",
+                    "platform": platform,
                     "technology": "Dependency reference",
                     "raw_path": document.path,
                     "owner": None,
@@ -1023,7 +1144,7 @@ def build_risk_register(
             score += 10
             factors.append("large data volume")
 
-        if asset["asset_type"] in {"adf_pipeline", "sql_script", "synapse_notebook"}:
+        if asset["asset_type"] in {"adf_pipeline", "sql_script", "synapse_notebook", "sqlserver_stored_procedure"}:
             score += 10
             factors.append("requires orchestration or code migration")
         if asset["asset_type"] in {"adf_linked_service", "adf_dataset"}:
@@ -1073,6 +1194,8 @@ def build_blueprint(
             "synapse_notebook_reference",
             "synapse_table",
             "synapse_view",
+            "sqlserver_table",
+            "sqlserver_view",
             "sql_referenced_object",
         }:
             target_pattern = "Unity Catalog Delta table"
@@ -1148,6 +1271,13 @@ def build_blueprint(
                 "Refactor platform-specific T-SQL functions.",
                 "Validate dependencies against Unity Catalog objects.",
             ]
+        elif asset_type == "sqlserver_stored_procedure":
+            target_pattern = "Databricks SQL, PySpark transformation or Lakeflow task"
+            target_schema = "workflows"
+            notes = [
+                "Review procedural T-SQL and split orchestration from transformations.",
+                "Convert reusable data logic into Databricks SQL or PySpark.",
+            ]
         else:
             target_pattern = "Migration support asset"
             target_schema = "bronze"
@@ -1184,6 +1314,8 @@ def build_data_quality_plan(
             "synapse_notebook_reference",
             "synapse_table",
             "synapse_view",
+            "sqlserver_table",
+            "sqlserver_view",
             "sql_referenced_object",
         }:
             checks = [
@@ -1600,15 +1732,18 @@ def get_spark():
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the Databricks migration accelerator MVP.")
+    parser = argparse.ArgumentParser(description="Run the Databricks migration accelerator.")
     parser.add_argument("--catalog", default="migration_accelerator_dev")
-    parser.add_argument("--source-root", default=default_source_root())
+    parser.add_argument("--source-root", default=None)
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--bronze-schema", default="bronze")
     parser.add_argument("--silver-schema", default="silver")
     parser.add_argument("--gold-schema", default="gold")
     parser.add_argument("--control-schema", default="control")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if not args.source_root:
+        args.source_root = default_source_root()
+    return args
 
 
 def main() -> None:
@@ -1616,6 +1751,7 @@ def main() -> None:
     started_at = utc_now()
     start = datetime.now(timezone.utc)
     run_id = args.run_id or f"run_{start.strftime('%Y%m%d_%H%M%S')}"
+    print(f"Starting migration accelerator run_id={run_id} catalog={args.catalog} source_root={args.source_root}")
     spark = get_spark()
     table_schemas = schemas()
 
@@ -1748,10 +1884,12 @@ def main() -> None:
         }
         status = "SUCCESS"
         error_message = None
+        print(f"Migration accelerator completed run_id={run_id} metrics={json.dumps(metrics, sort_keys=True)}")
     except Exception as exc:
         metrics = {}
         status = "FAILED"
         error_message = str(exc)
+        print(f"Migration accelerator failed run_id={run_id} error={error_message}")
         raise
     finally:
         ended_at = utc_now()
@@ -1777,5 +1915,9 @@ def main() -> None:
         )
 
 
-if __name__ == "__main__":
+if (
+    __name__ == "__main__"
+    or "filename" in globals()
+    or str(sys.argv[0]).replace("\\", "/").endswith("/run_accelerator.py")
+):
     main()

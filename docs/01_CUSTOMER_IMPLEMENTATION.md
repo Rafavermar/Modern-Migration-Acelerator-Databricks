@@ -4,22 +4,38 @@ This accelerator should be treated as a deployable product, not as a folder of e
 
 The customer does not copy this repository into every legacy system. The implementation team deploys the repository once, then the customer provides exports and access paths in a defined landing area.
 
+The customer does not need an existing metadata framework. The repo provides the metadata framework by normalizing raw exports into a common asset, dependency, risk and blueprint model.
+
 ## Product operating model
 
-1. Deploy the accelerator bundle to a customer Databricks workspace.
+1. Deploy the accelerator bundle to a customer Databricks workspace with serverless jobs.
 2. Create a governed metadata landing area in Unity Catalog.
 3. Ask the customer to export legacy metadata into that landing area.
 4. Run the accelerator jobs.
 5. Review the generated summary, priority matrix, dependency graph, risk register, target blueprint and data quality plan.
-6. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
+6. Publish graph outputs to Neo4j for visual impact analysis.
+7. Index artifacts with Databricks Vector Search for semantic discovery.
+8. Use MLflow when generated recommendations, RAG or assistant workflows are introduced.
+9. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
 
-The MVP focuses on steps 1 to 5. Step 6 is where implementation choices become customer-specific.
+The first delivery focuses on steps 1 to 5. Steps 6 to 9 are activated after the first Databricks outputs are trusted and credentials are approved.
 
 Before positioning the accelerator, review `docs/00_PRODUCT_POSITIONING.md`. It defines where this product fits, when existing tools are better and how to decide between federation, ingestion, external tables and volumes.
 
 For the first real Databricks execution, follow `docs/02_FIRST_RUN_RUNBOOK.md`. For customer discovery, use `contracts/customer_intake_checklist.md`.
 
-For Vector Search, RAG, MLflow, Model Serving and Neo4j planning, use `docs/05_ADVANCED_CAPABILITIES.md`. These are staged extensions, not first-run requirements.
+For Neo4j, Vector Search, RAG, MLflow and Model Serving planning, use `docs/05_ADVANCED_CAPABILITIES.md`. These are part of the full solution and are activated after the first Databricks run is trusted.
+
+## Customer connection map
+
+| Input | Where it is configured | What changes for a customer |
+| --- | --- | --- |
+| Databricks workspace | `.env`, `DATABRICKS_PROFILE`, `DATABRICKS_CATALOG` | Use the customer workspace profile and target catalog. |
+| Metadata root | `LEGACY_METADATA_SOURCE_ROOT` | Point to the customer Unity Catalog volume or external volume. |
+| ADF/Synapse/notebooks/SQL | Metadata landing folders | Drop exported files into the expected folders. |
+| SQL Server | Export CSV/JSON or approved direct access | Start with export-only discovery unless network and secrets are already approved. |
+| Neo4j | `.env` locally, secrets for enterprise | Publish the graph after the Databricks Delta outputs are trusted. |
+| Vector Search and MLflow | Advanced phase config | Add after artifact outputs, graph model and security review are stable. |
 
 ## Metadata landing contract
 
@@ -28,6 +44,14 @@ Recommended landing location:
 ```text
 /Volumes/<catalog>/landing/legacy_metadata/
 ```
+
+For demo-only runs, the scripts use:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/demo
+```
+
+Do not use `/Workspace/.../.bundle/.../files` as a metadata landing path. Workspace Files are for bundle code; metadata input belongs in a Unity Catalog volume.
 
 Recommended folders:
 
@@ -52,7 +76,7 @@ An example landing manifest is defined in:
 contracts/landing_manifest.example.json
 ```
 
-The current MVP parser supports these file families:
+The current parser supports these file families:
 
 - ADF pipeline exports as `.json`.
 - ADF dataset, linked service and trigger exports as `.json`.
@@ -60,11 +84,29 @@ The current MVP parser supports these file families:
 - Synapse notebooks as `.ipynb`.
 - SQL scripts, views, procedures and external table DDL as `.sql`.
 
-Future phases can add richer source-specific extractors, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
+Source-specific extractors can become richer over time, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
 
-## How to read MVP results
+## Demo vs customer mode
 
-Neo4j and Vector Search are optional because the MVP is consumed directly in Databricks.
+Demo mode:
+
+- Leave `LEGACY_METADATA_SOURCE_ROOT` empty.
+- Run `bash scripts/run_accelerator_dev.sh`.
+- The script uploads `samples/legacy_metadata` to `/Volumes/<catalog>/landing/legacy_metadata/demo`.
+
+Customer mode:
+
+- Export customer artifacts to `/Volumes/<catalog>/landing/legacy_metadata/`.
+- Set `LEGACY_METADATA_SOURCE_ROOT` to that volume path.
+- Validate, deploy and run the bundle again.
+
+Only the source path changes. The Databricks jobs, parsers and output tables stay the same.
+
+The scripts also upload runtime Python entrypoints to `/Volumes/<catalog>/landing/legacy_metadata/runtime` so serverless jobs do not depend on reading task code from Workspace Files.
+
+## How to read first-run results
+
+The first run is consumed directly in Databricks. Neo4j and Vector Search enrich the same outputs after credentials and security setup are ready.
 
 Use these Delta tables first:
 
@@ -74,6 +116,7 @@ Use these Delta tables first:
 - `gold.risk_register`: risk scores, factors and recommended actions.
 - `gold.target_databricks_blueprint`: proposed Databricks target patterns.
 - `gold.data_quality_plan`: validation checks to execute during migration.
+- `gold.semantic_legacy_documents`: chunked artifacts and generated outputs for Vector Search.
 
 Interpretation flow:
 
@@ -83,8 +126,16 @@ Interpretation flow:
 4. Confirm risk detail in `gold.risk_register`.
 5. Confirm target pattern in `gold.target_databricks_blueprint`.
 6. Use `gold.data_quality_plan` as the validation backlog.
+7. Use `gold.semantic_legacy_documents` as the source table for semantic indexing.
 
-Neo4j later makes graph exploration more visual. Vector Search later makes discovery semantic. Neither is required to interpret the MVP outputs.
+Neo4j makes graph exploration visual. Vector Search makes discovery semantic. Both build on these Delta outputs.
+
+To publish the graph after the first trusted run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
+```
 
 ## What the customer provides
 
@@ -128,7 +179,7 @@ It exists so developers can:
 - Test metadata extraction repeatably.
 - Generate a sample inventory without needing customer infrastructure.
 
-In a real implementation, the customer would run approved metadata extraction SQL against their SQL Server instances, or grant read-only metadata access to an implementation service account. The accelerator should receive the output CSV or JSON, not direct production database credentials during MVP discovery.
+In a real implementation, the customer would run approved metadata extraction SQL against their SQL Server instances, or grant read-only metadata access to an implementation service account. The accelerator should receive the output CSV or JSON during initial discovery.
 
 The starter SQL Server extraction query is:
 
@@ -136,7 +187,17 @@ The starter SQL Server extraction query is:
 samples/sqlserver/extract/metadata_inventory.sql
 ```
 
-Direct SQL Server connectivity can be added later for automated discovery, but it should be optional and controlled because network access, credentials, approvals and data handling policies vary by customer.
+## Real SQL Server implementation
+
+For a real SQL Server estate, use one of three patterns:
+
+- Export-only discovery: the customer runs approved read-only metadata queries and drops CSV/JSON outputs into the landing folder.
+- Lakehouse Federation: Databricks queries SQL Server live for discovery, validation or reconciliation when network and governance allow it.
+- Connector-based ingestion: Databricks ingests selected source tables when the migration execution plan requires managed Delta outputs.
+
+Use export-only discovery first unless the customer already has approved network connectivity and secret handling. It is the lowest-friction and lowest-risk onboarding path.
+
+The local Docker fixture is optional. A customer does not need Docker if they can provide SQL Server metadata exports.
 
 ## Data lake and Synapse external tables
 
@@ -145,7 +206,7 @@ Synapse serverless external tables usually point to files already stored in a la
 - The logical table object: database, schema, external table name, columns and dependencies.
 - The physical storage path: container, folder, file format and partition pattern.
 
-In the MVP, this is represented by:
+In this repo, this is represented by:
 
 - `samples/legacy_metadata/synapse_tables.csv`
 - `samples/legacy_metadata/synapse_serverless_external_tables.sql`
@@ -189,8 +250,9 @@ The accelerator should be plug-and-play for assessment:
 
 - Customer exports metadata to the landing contract.
 - Implementation team configures `.env` or bundle variables.
-- Databricks bundle deploys jobs.
+- Databricks bundle deploys serverless jobs.
 - Jobs generate control, silver and gold Delta outputs.
+- Self-contained serverless Python tasks are the default; classic job clusters are a customer-specific override.
 
 The accelerator should be configurable, not magical, for execution:
 
@@ -198,7 +260,7 @@ The accelerator should be configurable, not magical, for execution:
 - The generated blueprint should recommend target patterns.
 - Human review confirms which patterns become implementation work.
 
-This keeps the MVP usable as a product while avoiding risky assumptions about production data movement.
+This keeps the accelerator usable as a product while avoiding risky assumptions about production data movement.
 
 ## Minimal customer onboarding checklist
 

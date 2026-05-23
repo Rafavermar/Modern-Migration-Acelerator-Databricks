@@ -69,15 +69,21 @@ else {
     Write-Host "OK: DATABRICKS_PROFILE=$env:DATABRICKS_PROFILE"
 }
 
+if ($env:DATABRICKS_WORKSPACE_ID) {
+    Write-Host "OK: DATABRICKS_WORKSPACE_ID=$env:DATABRICKS_WORKSPACE_ID"
+}
+
 if (-not $env:DATABRICKS_CATALOG) {
     throw "DATABRICKS_CATALOG is required."
 }
 Write-Host "OK: DATABRICKS_CATALOG=$env:DATABRICKS_CATALOG"
 
-if (-not $env:DATABRICKS_NODE_TYPE_ID) {
-    throw "DATABRICKS_NODE_TYPE_ID is required."
+if ($env:DATABRICKS_NODE_TYPE_ID) {
+    Write-Host "OK: DATABRICKS_NODE_TYPE_ID=$env:DATABRICKS_NODE_TYPE_ID"
 }
-Write-Host "OK: DATABRICKS_NODE_TYPE_ID=$env:DATABRICKS_NODE_TYPE_ID"
+else {
+    Write-Host "OK: DATABRICKS_NODE_TYPE_ID is not set. The default bundle jobs use serverless compute."
+}
 
 $databricksArgs = @()
 if ($env:DATABRICKS_PROFILE) {
