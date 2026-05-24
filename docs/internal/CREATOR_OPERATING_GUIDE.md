@@ -35,6 +35,149 @@ Why this is the right MVP:
 - It keeps every output reviewable in Delta, Neo4j, Vector Search and MLflow.
 - It is easy to demo and easy to adapt to a real customer estate.
 
+## Programmatic Execution Flow
+
+This is the concrete call chain from terminal command to Databricks outputs.
+
+Local setup:
+
+```text
+scripts/setup_dev_env.* -> creates/updates .venv -> installs package extras when requested
+scripts/local_smoke_test.* -> compiles Python -> parses sample metadata -> runs unit tests
+```
+
+Databricks deploy:
+
+```text
+scripts/deploy_dev.sh
+  -> scripts/lib/load_env.sh reads .env
+  -> sets BUNDLE_VAR_catalog and BUNDLE_VAR_source_root
+  -> scripts/upload_sample_metadata_dev.sh
+      -> creates schema <catalog>.landing if missing
+      -> creates volume <catalog>.landing.legacy_metadata if missing
+      -> uploads runtime Python files to /Volumes/<catalog>/landing/legacy_metadata/runtime/
+      -> uploads samples/legacy_metadata to /Volumes/<catalog>/landing/legacy_metadata/demo when customer source is not set
+      -> uploads local_outputs/legacy_metadata when SQL Server export exists
+  -> databricks bundle deploy -t dev
+      -> reads databricks.yml
+      -> reads resources/jobs.yml
+      -> creates/updates Databricks jobs
+```
+
+Assessment run:
+
+```text
+scripts/run_accelerator_dev.sh
+  -> reads .env
+  -> if LEGACY_METADATA_SOURCE_ROOT is empty:
+       sets source_root=/Volumes/<catalog>/landing/legacy_metadata/demo
+       calls upload_sample_metadata_dev.sh
+     else:
+       sets source_root=<customer volume path>
+  -> databricks bundle run migration_accelerator -t dev
+      -> resources/jobs.yml task parse_analyze_blueprint
+      -> spark_python_task runs dbfs:/Volumes/<catalog>/landing/legacy_metadata/runtime/run_accelerator.py
+      -> run_accelerator.py reads source_root with Spark binaryFile
+      -> parses JSON, CSV, SQL and notebook files
+      -> normalizes assets and dependencies
+      -> builds risk, priority, blueprint, graph and DQ outputs
+      -> writes Delta tables in <catalog>.control, bronze, silver and gold
+```
+
+Target demo:
+
+```text
+scripts/run_target_demo_dev.sh
+  -> databricks bundle run target_demo -t dev
+      -> resources/jobs.yml task create_target_demo
+      -> runs runtime/run_target_demo.py from the Unity Catalog volume
+      -> reads gold.target_databricks_blueprint
+      -> writes demo.target_migration_plan
+```
+
+Semantic prep:
+
+```text
+scripts/run_semantic_index_prep_dev.sh
+  -> databricks bundle run semantic_index_prep -t dev
+      -> resources/jobs.yml task prepare_semantic_documents
+      -> runs runtime/run_semantic_index_prep.py from the Unity Catalog volume
+      -> reads source metadata and generated Delta outputs
+      -> sanitizes and chunks text
+      -> writes gold.semantic_legacy_documents
+      -> enables Delta Change Data Feed for Vector Search sync
+```
+
+Vector Search:
+
+```text
+scripts/create_vector_search_dev.*
+  -> reads .env
+  -> gets or creates Vector Search endpoint mma-vector-search-dev
+  -> gets or creates index migration_accelerator_dev.gold.semantic_legacy_documents_vs
+  -> index source table is gold.semantic_legacy_documents
+  -> embedding source column is chunk_text
+  -> embedding endpoint is databricks-qwen3-embedding-0-6b
+  -> waits for ready=true
+  -> triggers sync
+```
+
+RAG retrieval and generated answer:
+
+```text
+scripts/rag_search_dev.ps1
+  -> runs python -m modern_migration_accelerator.rag_search
+  -> rag_search.py reads .env
+  -> calls Databricks Vector Search REST API
+  -> parses returned chunks
+  -> writes local_outputs/rag/latest_search.json
+  -> writes local_outputs/rag/latest_answer.md
+  -> writes local_outputs/rag/latest_trace.json
+
+scripts/rag_search_dev.ps1 -GenerateAnswer
+  -> builds prompt from retrieved evidence only
+  -> calls Databricks serving-endpoints query <DATABRICKS_LLM_ENDPOINT>
+  -> writes latest_generation.json and latest_llm_answer.md
+
+scripts/rag_search_dev.ps1 -LogMlflow
+  -> sets MLflow tracking to databricks://<DATABRICKS_PROFILE>
+  -> logs params, metrics and artifacts to /Shared/modern-migration-accelerator
+```
+
+RAG eval:
+
+```text
+scripts/rag_eval_dev.ps1
+  -> runs python -m modern_migration_accelerator.rag_eval
+  -> reads contracts/rag_eval_questions.json
+  -> executes multiple RAG retrieval calls
+  -> scores expected terms/assets against retrieved evidence
+  -> writes local_outputs/rag_eval/latest_eval.json
+  -> writes local_outputs/rag_eval/latest_eval.md
+```
+
+Neo4j graph:
+
+```text
+scripts/check_neo4j_connection.ps1
+  -> verifies URI, auth and database
+
+scripts/publish_neo4j_graph.ps1
+  -> runs scripts/publish_neo4j_graph.py
+  -> uses modern_migration_accelerator.neo4j_graph
+  -> parses samples and optional local metadata outputs
+  -> MERGE nodes/relationships into AuraDB
+
+scripts/verify_neo4j_graph.ps1
+  -> checks expected labels and relationship counts
+```
+
+Important design choice:
+
+- Databricks jobs run code from `/Volumes/.../runtime/`, not from `/Workspace/.../.bundle/.../files`.
+- Functional metadata lives in `/Volumes/.../legacy_metadata/`, not in the bundle files path.
+- This makes the serverless path more reliable and closer to enterprise workspace rules.
+
 ## What Each Layer Does
 
 Databricks assessment:
@@ -311,6 +454,59 @@ Later productized package:
 - Optional served RAG assistant endpoint.
 - Scorer-based GenAI evaluation.
 - More extractors driven by real artifacts.
+
+## Multi-Client Operating Model
+
+Keep two layers separate:
+
+- Product base: this repository, versioned as releases such as `v0.1.0`.
+- Customer implementation: a private fork, repo copy or configuration overlay with customer-specific metadata, secrets strategy and deployment settings.
+
+Recommended flow for a new client:
+
+1. Start from the latest product release.
+2. Create a private customer repo or fork.
+3. Configure `.env` or bundle variables for the customer workspace, catalog and landing volume.
+4. Keep secrets outside Git: Databricks secrets, service principals or the customer secret manager.
+5. Ask the customer for redacted metadata exports first.
+6. Run demo/customer mode with those exports.
+7. Review outputs with architects.
+8. If extractors miss real patterns, add source-specific parser improvements in the customer branch.
+9. Decide whether the improvement is generic.
+10. If generic, port it back to the product base and release a new version.
+11. If customer-specific, keep it only in the customer implementation.
+
+How to distribute improvements:
+
+- Patch release: bug fixes, docs, small parser fixes. Example: `v0.1.1`.
+- Minor release: new source family, new output, improved RAG/eval workflow. Example: `v0.2.0`.
+- Customer overlay update: merge the product release into the customer fork after testing.
+
+What never goes back to the product base:
+
+- customer credentials;
+- customer metadata artifacts;
+- customer hostnames, workspace IDs or tenant details;
+- customer-specific scoring rules unless generalized and anonymized;
+- screenshots with sensitive names unless sanitized.
+
+If several clients exist:
+
+- keep each implementation isolated;
+- keep the product base clean;
+- promote only reusable improvements;
+- document migration notes in `CHANGELOG.md`;
+- tag releases so clients can upgrade intentionally, not accidentally.
+
+Practical example:
+
+```text
+modern-migration-accelerator          -> product base, public or controlled repo
+client-a-mma-implementation           -> private implementation repo
+client-b-mma-implementation           -> private implementation repo
+```
+
+Client A has custom ADF expressions. We improve the parser. If the logic is generally useful and sanitized, we add it to product base `v0.2.0`. Client B can later adopt `v0.2.0` without inheriting Client A data.
 
 ## Sources Used For The Serving Decision
 
