@@ -6,6 +6,21 @@ The customer does not copy this repository into every legacy system. The impleme
 
 The customer does not need an existing metadata framework. The repo provides the metadata framework by normalizing raw exports into a common asset, dependency, risk and blueprint model.
 
+## What the customer gets
+
+The first customer outcome is a Databricks-native migration assessment, not a completed production migration.
+
+The accelerator produces:
+
+- what legacy assets exist;
+- how they depend on each other;
+- which assets are high risk or first-wave candidates;
+- which Databricks target pattern is recommended;
+- which validation checks should be planned;
+- where architects can inspect the graph, search evidence and trace generated answers.
+
+The customer uses those outputs to execute migration work through approved Databricks engineering patterns.
+
 ## Product operating model
 
 1. Deploy the accelerator bundle to a customer Databricks workspace with serverless jobs.
@@ -130,6 +145,28 @@ Interpretation flow:
 7. Use `gold.semantic_legacy_documents` as the source table for semantic indexing.
 
 Neo4j makes graph exploration visual. Vector Search makes discovery semantic. Both build on these Delta outputs.
+
+## How migration execution starts
+
+After the assessment is reviewed, migration execution starts from the gold outputs:
+
+| Question | Output to use | Execution decision |
+| --- | --- | --- |
+| What moves first? | `gold.asset_priority_matrix` | Select wave 1 assets and review backlog. |
+| What could break? | `gold.graph_edges`, Neo4j | Check upstream/downstream dependencies before implementation. |
+| What should the target be? | `gold.target_databricks_blueprint` | Choose Delta table, external table, volume, federation or connector pattern. |
+| What must be validated? | `gold.data_quality_plan` | Define pre/post migration checks and ownership. |
+| What is risky? | `gold.risk_register` | Decide mitigation, sequencing and manual review. |
+
+Then the delivery team implements the chosen pattern:
+
+- managed Delta ingestion for Databricks-owned analytical tables;
+- external tables or volumes for data already in governed cloud storage;
+- Lakehouse Federation for live access, validation or phased coexistence;
+- Lakeflow or connector-based ingestion for repeatable source-to-Delta movement;
+- Databricks jobs, notebooks or workflows for transformed logic.
+
+The accelerator can be re-run after new exports or implementation changes to refresh priorities and validate that the plan still matches the estate.
 
 To publish the graph after the first trusted run:
 

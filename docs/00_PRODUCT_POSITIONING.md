@@ -4,6 +4,23 @@ This accelerator is a migration assessment product for Databricks modernization.
 
 It is not an enterprise catalog, data movement engine, database migration service or automatic code converter.
 
+## Product Boundary
+
+The product is an assessment and planning accelerator.
+
+It creates the migration decision layer:
+
+- inventory of legacy assets;
+- normalized dependencies;
+- risk and priority scoring;
+- Databricks target blueprint;
+- data quality plan;
+- graph and semantic search surfaces for review.
+
+It does not perform the full migration execution by itself. Production data movement, code conversion, pipeline rebuild, cutover, reconciliation and operational scheduling remain implementation work driven by the generated blueprint.
+
+In practical terms: the accelerator tells the customer what to migrate first, why, what it depends on and which Databricks pattern should be used. The delivery team then implements that pattern with Databricks-native engineering.
+
 ## Core Scope
 
 Use it to:

@@ -4,6 +4,18 @@ Use this runbook when the Full Trial Databricks workspace is ready.
 
 Do not run deployment commands against Databricks Free Edition.
 
+## What this run proves
+
+The run proves the migration assessment path:
+
+1. Metadata lands in Unity Catalog.
+2. Databricks jobs parse and normalize assets.
+3. Delta tables expose inventory, dependencies, risk, priority, blueprint and DQ plan.
+4. Neo4j, Vector Search, RAG and MLflow enrich those outputs.
+5. The migration team uses the gold outputs to plan execution.
+
+This run does not execute a full production migration. Production data movement and code rebuild are separate implementation steps driven by `gold.target_databricks_blueprint` and customer engineering standards.
+
 ## 1. Confirm local readiness
 
 ```powershell
@@ -141,6 +153,8 @@ bash scripts/run_target_demo_dev.sh
 Expected output:
 
 - `demo.target_migration_plan`
+
+This is a blueprint consumer demo. It proves that generated recommendations can be consumed by a downstream Databricks job. It does not move production source data or execute a real cutover.
 
 ## 8. Prepare semantic corpus
 

@@ -4,6 +4,21 @@ Plug-and-play migration assessment accelerator for Databricks modernization.
 
 The solution parses legacy metadata, normalizes assets, builds a dependency graph, generates migration risk outputs, produces Databricks target blueprints and writes Delta tables in Databricks.
 
+## What this product does
+
+This product accelerates migration assessment and planning. It answers: what exists, how assets depend on each other, what is risky, what should be reviewed first and what Databricks target pattern is recommended.
+
+It helps the migration execution team, but it is not a data movement engine, automatic ADF/Synapse code converter or production ingestion framework. After assessment, the customer implements the chosen target patterns with Databricks jobs, Lakeflow, connectors, external tables, federation, notebooks or customer-standard engineering delivery.
+
+## Fast start
+
+1. Configure `.env` with the Databricks profile, catalog and optional Neo4j values.
+2. Run `scripts/local_smoke_test.*` to validate the repo without cloud changes.
+3. Run `scripts/validate_bundle.sh`, `scripts/deploy_dev.sh` and `scripts/run_accelerator_dev.sh`.
+4. Review `gold.assessment_summary`, `gold.asset_priority_matrix`, `gold.graph_edges`, `gold.risk_register`, `gold.target_databricks_blueprint` and `gold.data_quality_plan`.
+5. Add Neo4j, Vector Search, RAG and MLflow after the Delta outputs are trusted.
+6. Move to customer mode by uploading exports to `/Volumes/<catalog>/landing/legacy_metadata/` and setting `LEGACY_METADATA_SOURCE_ROOT`.
+
 ## How it works
 
 1. Configure the repo once for a Databricks Full Trial or full workspace.
@@ -62,6 +77,19 @@ Full solution technologies:
 - Enterprise CI/CD integration through the customer standard toolchain.
 
 The first deploy validates the Databricks assessment backbone. Neo4j, Vector Search, RAG and MLflow then build on the same governed outputs.
+
+## From assessment to migration
+
+The accelerator does not copy production data by default. It creates the decision layer that tells the team how to migrate.
+
+Typical execution path after review:
+
+1. Use `gold.asset_priority_matrix` to select the first migration wave.
+2. Use `gold.graph_edges` and Neo4j to check upstream/downstream blast radius.
+3. Use `gold.target_databricks_blueprint` to choose the target pattern per asset.
+4. Use `gold.data_quality_plan` to define validation checks before and after migration.
+5. Implement the selected pattern: managed Delta ingestion, Unity Catalog external table, Unity Catalog volume, Lakehouse Federation, or a source-specific connector.
+6. Re-run the accelerator after each metadata refresh to keep the migration backlog current.
 
 ## Outputs
 
@@ -369,6 +397,8 @@ bash scripts/run_target_demo_dev.sh
 The target demo writes:
 
 - `demo.target_migration_plan`
+
+This proves the blueprint can feed a downstream Databricks job. It is not production data movement.
 
 Prepare the semantic corpus for Vector Search:
 

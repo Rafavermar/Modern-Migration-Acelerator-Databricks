@@ -2,6 +2,14 @@
 
 This document explains the product architecture, the Databricks resources that are created and where each repo piece fits.
 
+## Product Role
+
+The repository implements a Databricks migration assessment workbench.
+
+It runs before or during migration execution to build the inventory, dependency model, risk register, target blueprint, DQ plan, graph and semantic search layer. It does not move all production data, convert all legacy code or cut workloads over by itself.
+
+The execution team uses the outputs to decide and implement the actual migration pattern for each asset.
+
 ## Architecture Layers
 
 ![Modern Migration Accelerator architecture layers](assets/architecture_layers.png)
@@ -36,7 +44,7 @@ flowchart LR
 | --- | --- |
 | Metadata landing volume | Stores raw exported artifacts and runtime Python scripts in governed storage. |
 | Accelerator job | Parses raw artifacts, normalizes assets/dependencies, scores risk and writes Delta outputs. |
-| Target demo job | Consumes the generated blueprint and creates a simple target migration plan table. |
+| Target demo job | Consumes the generated blueprint and creates a simple target migration plan table. It is not production data movement. |
 | Semantic prep job | Creates sanitized chunks from legacy artifacts and generated outputs for Vector Search. |
 | Vector Search index | Provides semantic and hybrid retrieval over the migration estate. |
 
@@ -94,7 +102,7 @@ Default dev deployment creates or uses:
 | Runtime scripts | `/Volumes/<catalog>/landing/legacy_metadata/runtime/` | Serverless-safe Python task entrypoints. |
 | Demo metadata | `/Volumes/<catalog>/landing/legacy_metadata/demo/` | Uploaded sample artifacts plus optional local SQL Server export. |
 | Job | `modern_migration_accelerator_databricks-dev-accelerator` | Parse metadata and write assessment outputs. |
-| Job | `modern_migration_accelerator_databricks-dev-target-demo` | Build a demo target migration plan from the blueprint. |
+| Job | `modern_migration_accelerator_databricks-dev-target-demo` | Build a demo target migration plan from the blueprint; no source data cutover. |
 | Job | `modern_migration_accelerator_databricks-dev-semantic-index-prep` | Build Vector Search-ready semantic chunks. |
 | Vector Search endpoint | `mma-vector-search-dev` | Serves the semantic search index. |
 | Vector Search index | `migration_accelerator_dev.gold.semantic_legacy_documents_vs` | Delta Sync hybrid index over semantic chunks. |
