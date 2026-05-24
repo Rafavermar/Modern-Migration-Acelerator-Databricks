@@ -503,5 +503,6 @@ Read these in order:
 - `docs/03_METADATA_FRAMEWORK.md`
 - `docs/04_LOCAL_SQLSERVER_FIXTURE.md`
 - `docs/05_ADVANCED_CAPABILITIES.md`
+- `docs/07_DEMO_AND_PACKAGING.md`
 
 Vector Search, embeddings, RAG, MLflow tracking, GenAI tracing and model or agent evaluation are full-solution layers that build on the trusted Databricks assessment outputs.
