@@ -2,6 +2,27 @@
 
 Use this document only after the end-to-end dev flow is green.
 
+## Finished Product Boundary
+
+The finished sellable product is:
+
+- a Databricks migration assessment and planning accelerator;
+- a plug-and-play metadata landing and bundle execution flow;
+- a Delta output model for inventory, dependencies, risks, priorities, blueprint and DQ plan;
+- Neo4j impact graph publishing;
+- Vector Search, RAG, Foundation Model answer generation, MLflow logging and starter RAG eval;
+- documentation that explains demo mode, customer mode and migration execution boundaries.
+
+The remaining improvements are customer-dependent:
+
+- richer extractors for real ADF/Synapse/SQL/notebook patterns;
+- customer-specific scoring weights;
+- customer-specific secret scopes, service principals and CI/CD;
+- production ingestion/federation patterns after the assessment;
+- optional served assistant endpoint if the customer needs an interactive API.
+
+Do not block the walkthrough on those items.
+
 ## Product Readiness Gate
 
 The product is demo-ready when these checks pass:
@@ -20,6 +41,32 @@ The product is demo-ready when these checks pass:
 - README and docs explain assessment scope, execution boundary and customer mode.
 
 This is sellable as a migration assessment and planning accelerator. It is not sold as an automatic data migration engine.
+
+## RAG Serving Decision
+
+Current product mode:
+
+- `rag_search_dev.*` is the validated reviewer workflow.
+- `-GenerateAnswer` calls the Databricks Foundation Model endpoint.
+- `-LogMlflow` records evidence and generated-answer artifacts.
+- This is enough for demo, workshops and assessment delivery.
+
+When to add Model Serving or AI Gateway:
+
+- users need an interactive assistant instead of a script;
+- another app must call the accelerator through an API;
+- access, rate limits, monitoring and endpoint ownership are approved;
+- the customer accepts serving endpoint cost and lifecycle management.
+
+Recommended serving path:
+
+1. Package the RAG workflow as an MLflow `pyfunc` or agent-style model.
+2. Register it in Unity Catalog.
+3. Create a Databricks Model Serving endpoint.
+4. Configure secrets/service principal access to Vector Search, MLflow and the Foundation Model endpoint.
+5. Add AI Gateway policies if the customer requires governance, rate limits or monitoring.
+
+Do not make a served endpoint mandatory for the core product. It is an enterprise delivery option on top of the validated assessment workflow.
 
 ## Screenshot Checklist
 
@@ -83,6 +130,13 @@ Recommended now:
 - Versioned GitHub releases with source zip and clear release notes.
 - `.env.example`, sample metadata, contracts and scripts included.
 - Customer clones the repo, fills `.env`, runs the documented commands and replaces metadata inputs.
+
+Plain meaning:
+
+- GitHub repository template: users can create their own copy of the project without copying secrets or local state.
+- Databricks Asset Bundle: the deployable unit that creates the Databricks jobs and keeps resources defined as code.
+- Versioned release: a tagged stable snapshot such as `v0.1.0` with release notes, so demos and customers do not depend on a moving branch.
+- Customer overlay: customer-specific values live outside the base product, usually in `.env`, bundle variables, secret scopes or a private fork.
 
 Good enterprise package:
 

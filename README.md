@@ -491,6 +491,12 @@ Optional future files:
 
 Do not create those files unless explicitly requested.
 
+## Packaging recommendation
+
+Use this as a GitHub repository template or tagged release. The Databricks Asset Bundle is the deployable unit; `.env.example`, contracts, scripts and sample metadata are the onboarding layer.
+
+For a customer, create a private fork or configuration overlay, set customer-specific bundle variables and secrets, then deploy the same bundle. Keep customer artifacts and credentials out of the public product repo.
+
 ## Documentation
 
 Read these in order:
@@ -504,5 +510,6 @@ Read these in order:
 - `docs/04_LOCAL_SQLSERVER_FIXTURE.md`
 - `docs/05_ADVANCED_CAPABILITIES.md`
 - `docs/07_DEMO_AND_PACKAGING.md`
+- `CHANGELOG.md`
 
 Vector Search, embeddings, RAG, MLflow tracking, GenAI tracing and model or agent evaluation are full-solution layers that build on the trusted Databricks assessment outputs.

@@ -410,6 +410,26 @@ Use Model Serving when users need an interactive assistant or recommendation end
 
 Keep batch assessment in Databricks jobs and Delta outputs. Serving is for interactive workflows.
 
+Decision:
+
+- Do not require Model Serving for the core accelerator.
+- Use the current RAG script workflow for demos, workshops and first assessments.
+- Add serving when the customer needs an API or assistant experience.
+
+Serving implementation path:
+
+1. Wrap the existing retrieve-first, generate-second RAG logic as an MLflow `pyfunc` or Databricks agent-style model.
+2. Register the model in Unity Catalog.
+3. Create a Model Serving endpoint.
+4. Configure endpoint access to Vector Search, Foundation Model endpoint and MLflow using customer-approved secrets or service principals.
+5. Add AI Gateway policies when governance, usage monitoring, guardrails or rate limits are required.
+
+Why it is not mandatory now:
+
+- It does not improve the deterministic assessment outputs.
+- It adds endpoint lifecycle, permissions, serving cost and cold-start considerations.
+- The script workflow is easier to validate during a migration assessment workshop.
+
 ## Stop Conditions
 
 Stop advanced work if:
