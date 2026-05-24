@@ -62,6 +62,23 @@ This starts `mcr.microsoft.com/mssql/server:2022-latest`, creates the `LegacySal
 - `mart.FactOrders`
 - `dbo.usp_build_fact_orders`
 
+## After reboot
+
+Docker uses the named volume `legacy-sqlserver-data`, so the database survives a normal laptop shutdown.
+
+Next day:
+
+1. Open Docker Desktop.
+2. Run the bootstrap script again if the container is stopped:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_sqlserver.ps1
+```
+
+The seed script is idempotent: it creates missing objects, keeps existing demo rows and updates views/procedures with `CREATE OR ALTER`.
+
+The SQL Server fixture is only needed when you want to demo or regenerate SQL Server metadata. The Databricks Delta outputs already written by the accelerator do not require the container to be running.
+
 ## Export metadata
 
 ```bash

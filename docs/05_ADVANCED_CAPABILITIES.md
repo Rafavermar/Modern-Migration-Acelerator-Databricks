@@ -125,7 +125,7 @@ What the RAG/search command does:
 5. Builds `latest_answer.md` locally as a deterministic retrieval brief.
 6. Writes `latest_search.json` and `latest_trace.json` for review and future MLflow evaluation.
 
-It does not sort the whole estate by risk. It retrieves relevant evidence for the question. If returned chunks contain `p1` or high-risk assets, the brief highlights them first. It does not call an LLM yet.
+Base retrieval mode does not sort the whole estate by risk and does not call an LLM. It retrieves relevant evidence for the question. If returned chunks contain `p1` or high-risk assets, the brief highlights them first.
 
 What `-GenerateAnswer` adds:
 
@@ -153,7 +153,7 @@ Terminology:
 | Hybrid search | Combines semantic vector retrieval with keyword matching. |
 | Reciprocal Rank Fusion | Ranking method used by Databricks hybrid search to merge ANN and full-text results. |
 | Reranker | Optional second pass that can re-score retrieved rows for higher precision when latency and cost allow it. |
-| RAG | Retrieval-augmented generation. In this repo the first layer retrieves and summarizes evidence before any LLM is added. |
+| RAG | Retrieval-augmented generation. In this repo retrieval happens first; optional generation then uses only the retrieved evidence. |
 
 Purpose:
 
@@ -179,6 +179,8 @@ Outputs:
 - `local_outputs/rag/latest_search.json`: raw search results.
 - `local_outputs/rag/latest_answer.md`: grounded retrieval brief.
 - `local_outputs/rag/latest_trace.json`: MLflow-ready trace payload.
+- `local_outputs/rag/latest_generation.json`: raw LLM response when `-GenerateAnswer` is used.
+- `local_outputs/rag/latest_llm_answer.md`: generated answer grounded in retrieved evidence.
 
 Activation steps:
 
@@ -295,6 +297,15 @@ RAG/search UI visibility:
 - If `-LogMlflow` is enabled, the same outputs are visible as artifacts in the configured Databricks MLflow experiment.
 - A future assistant endpoint would appear under Model Serving or AI Gateway only after it is explicitly packaged and deployed.
 
+Foundation Model usage:
+
+- `-GenerateAnswer` calls the Databricks Foundation Model API through the configured chat endpoint.
+- Dev default: `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`.
+- The script sends only the user question and the retrieved evidence chunks, not the full source estate.
+- Defaults are intentionally small: `RAG_LLM_MAX_TOKENS=700` and `RAG_LLM_TEMPERATURE=0.0`.
+- Foundation Model calls consume workspace credits. Use them for final validation, screenshots and demos; use retrieval-only mode while tuning metadata and index quality.
+- Watch Databricks `Manage Trial` and billing/usage pages during repeated tests. Do not run loops over many questions until an evaluation budget is agreed.
+
 Interpretation:
 
 - A result is evidence, not a final recommendation.
@@ -321,14 +332,15 @@ Pause implementation if:
 
 ## MLflow
 
-MLflow is the observability and evaluation layer for GenAI behavior. The current RAG utility creates a trace-shaped JSON payload and can optionally log artifacts to an MLflow experiment. Full MLflow GenAI tracing starts when an LLM response is introduced.
+MLflow is the observability and evaluation layer for GenAI behavior. The current RAG utility can log retrieval artifacts, generated answers and manual trace spans to a Databricks MLflow experiment.
 
 Current starter:
 
 - Optional dependency: `pip install -e .[genai]`.
 - Experiment: `MLFLOW_EXPERIMENT_NAME`, default `/Shared/modern-migration-accelerator`.
 - Script: `scripts/rag_search_dev.ps1 -LogMlflow`.
-- Logged artifacts: search JSON, retrieval brief and trace JSON.
+- Generated answer script: `scripts/rag_search_dev.ps1 -GenerateAnswer -LogMlflow`.
+- Logged artifacts: search JSON, retrieval brief, trace JSON, generation JSON and LLM answer markdown when generation is enabled.
 
 What the two MLflow commands do:
 
@@ -337,7 +349,7 @@ What the two MLflow commands do:
 - `rag_search_dev.ps1 -GenerateAnswer -LogMlflow` also logs the LLM endpoint, generated answer length, generation JSON and answer markdown.
 - Tracking target: `MLFLOW_TRACKING_URI` when set, otherwise `databricks://<DATABRICKS_PROFILE>`.
 
-This is starter MLflow Tracking plus manual tracing for retrieval and LLM generation. Full evaluator-based GenAI quality scoring is still a separate hardening step.
+This is starter MLflow Tracking plus manual tracing for retrieval and LLM generation. Evaluator-based GenAI quality scoring is the next hardening step.
 
 Trace and evaluate when generated answers exist:
 
@@ -368,7 +380,8 @@ Current UI state:
 
 - `scripts/rag_search_dev.ps1 -LogMlflow` creates a standard MLflow run with artifacts.
 - The expected tracking URI in dev is `databricks://mma-fulltrial`.
-- Full GenAI trace spans and evaluation runs are not created yet; they start when the workflow calls an LLM and is instrumented with MLflow GenAI tracing.
+- `scripts/rag_search_dev.ps1 -GenerateAnswer -LogMlflow` also records the LLM endpoint, generated answer length and answer artifacts.
+- Manual retrieval and LLM spans are created by the local utility; scorer-based evaluation runs are not created yet.
 
 Pause implementation if:
 

@@ -25,7 +25,7 @@ flowchart LR
 
 | Platform | Role |
 | --- | --- |
-| Databricks | Runs the bundle, serverless jobs, Delta outputs, Unity Catalog governance, Vector Search and future MLflow/RAG workflows. |
+| Databricks | Runs the bundle, serverless jobs, Delta outputs, Unity Catalog governance, Vector Search, RAG utilities and MLflow tracking. |
 | Unity Catalog | Governs the catalog, schemas, tables, volumes, vector index and optional federated connections. |
 | Neo4j AuraDB | Graph exploration for migration impact analysis. Delta remains the assessment source of truth. |
 | SQL Server | Local Docker fixture for demo; real customer source can use export-only discovery, Lakehouse Federation or connector-based ingestion. |
@@ -46,8 +46,9 @@ flowchart LR
 | --- | --- |
 | Embedding model endpoint | Converts `chunk_text` into vectors. Dev uses `databricks-qwen3-embedding-0-6b`. |
 | Vector Search endpoint | Serves the vector index for retrieval queries. Dev uses `mma-vector-search-dev`. |
-| RAG/search workflow | Current starter retrieves relevant chunks and writes a grounded brief; later it can call an LLM. |
-| MLflow | Current starter can log retrieval artifacts; later GenAI tracing/evaluation covers prompts, context, responses and human review. |
+| Foundation Model chat endpoint | Generates optional grounded answers from retrieved evidence. Dev uses `databricks-gemma-3-12b`. |
+| RAG/search workflow | Retrieves relevant chunks, writes a grounded brief and can generate an LLM answer with `-GenerateAnswer`. |
+| MLflow | Logs retrieval, generation artifacts and manual trace spans; scorer-based evaluation is the next hardening layer. |
 | Model Serving / AI Gateway | Future interactive serving layer if the accelerator exposes an assistant endpoint. |
 
 ## Databricks UI Map
@@ -64,7 +65,9 @@ Use this map when validating the workspace manually.
 | Vector index sync | Vector index page > `Overview` > `Data Ingest` | `Sync now` for triggered sync |
 | Vector Search endpoint | CLI/API, and Vector Search index details | Endpoint `mma-vector-search-dev` |
 | Embedding model endpoint | AI Gateway / Foundation Model endpoints, depending workspace UI and filters | `databricks-qwen3-embedding-0-6b` |
+| Foundation Model chat endpoint | `AI/ML` > `Serving` or `AI Gateway`, depending workspace UI | `databricks-gemma-3-12b` |
 | RAG/search brief | Local repo output unless MLflow logging is enabled | `local_outputs/rag/latest_answer.md`, `latest_search.json`, `latest_trace.json` |
+| Generated RAG answer | Local repo output; MLflow artifact when `-LogMlflow` is enabled | `local_outputs/rag/latest_llm_answer.md`, `latest_generation.json` |
 | MLflow starter run | `Experiments` | Experiment from `MLFLOW_EXPERIMENT_NAME`, default `/Shared/modern-migration-accelerator` |
 
 Do not expect `mma-vector-search-dev` to appear under `AI/ML > Serving` as a normal user-created serving endpoint. Vector Search endpoints are managed separately from Model Serving endpoints. The index is visible and governed in Unity Catalog. The endpoint is easiest to verify with:
@@ -95,6 +98,8 @@ Default dev deployment creates or uses:
 | Vector Search endpoint | `mma-vector-search-dev` | Serves the semantic search index. |
 | Vector Search index | `migration_accelerator_dev.gold.semantic_legacy_documents_vs` | Delta Sync hybrid index over semantic chunks. |
 | Embedding endpoint | `databricks-qwen3-embedding-0-6b` | Databricks-hosted embedding model used by the index. |
+| Foundation Model endpoint | `databricks-gemma-3-12b` | Databricks-hosted chat model used only when `-GenerateAnswer` is passed. |
+| MLflow experiment | `/Shared/modern-migration-accelerator` | Stores RAG retrieval/generation artifacts and starter traces. |
 
 Current dev validation:
 
@@ -109,8 +114,18 @@ Current dev validation:
 | Text column | `chunk_text`. |
 | ANN metric | Databricks-managed HNSW with L2 distance. |
 | Query mode | `HYBRID` by default in repo scripts. |
+| RAG retrieval | Validated with `rag_search_dev.ps1`. |
+| Generated RAG answer | Validated with `databricks-gemma-3-12b`. |
+| MLflow run | Validated in Databricks experiment `/Shared/modern-migration-accelerator`. |
 
 Databricks also creates internal service resources for Vector Search, such as a Delta Sync pipeline ID. Those IDs are workspace-generated and should not be hardcoded in the repo.
+
+Credit guardrails:
+
+- Vector Search creation, index sync and Foundation Model calls consume Databricks trial credits.
+- Retrieval-only RAG is cheaper than generated-answer mode because it does not call a chat model.
+- Use `-GenerateAnswer` for final validation, screenshots and demos; avoid loops over many questions until a usage budget exists.
+- Keep `RAG_LLM_MAX_TOKENS` small for dev. Default is `700`.
 
 ## Bundle Structure
 
@@ -128,7 +143,7 @@ Databricks also creates internal service resources for Vector Search, such as a 
 | `scripts/run_semantic_index_prep_dev.sh` | Run the semantic corpus preparation job. |
 | `scripts/create_vector_search_dev.*` | Create/sync the dev Vector Search endpoint and index. |
 | `scripts/query_vector_search_dev.*` | Query the Vector Search index with a natural-language question. |
-| `scripts/rag_search_dev.*` | Query Vector Search, build a grounded retrieval brief and optionally log a starter MLflow run. |
+| `scripts/rag_search_dev.*` | Query Vector Search, build a grounded retrieval brief, optionally call a Foundation Model and optionally log to MLflow. |
 | `scripts/publish_neo4j_graph.*` | Publish the normalized asset and dependency graph to Neo4j AuraDB. |
 | `scripts/verify_neo4j_graph.*` | Verify the latest Neo4j graph publication. |
 | `scripts/query_sqlserver_fixture.*` | Inspect the local SQL Server fixture without SSMS. |
@@ -180,8 +195,9 @@ Improving extractors usually means adding support for more real-world source sha
 9. Prepare semantic chunks.
 10. Create and query the Vector Search index.
 11. Build a RAG-ready retrieval brief from Vector Search.
-12. Publish to Neo4j.
-13. Add generated answers, MLflow GenAI evaluation and serving after retrieval behavior is trusted.
+12. Optionally generate a grounded LLM answer and log it to MLflow.
+13. Publish to Neo4j.
+14. Add scorer-based GenAI evaluation and serving after retrieval behavior is trusted.
 
 ## Metadata Modes
 
@@ -232,11 +248,13 @@ Confirmed working:
 - Semantic chunk table generation.
 - Databricks Vector Search endpoint, Delta Sync hybrid index and query scripts.
 - RAG-ready search utility that writes local evidence, answer brief and trace JSON.
+- Foundation Model grounded answer generation with `databricks-gemma-3-12b`.
+- Databricks MLflow experiment logging for retrieval, generation artifacts and manual trace spans.
 
 Remaining product hardening:
 
-- Add LLM-generated answers on top of the retrieval brief.
-- Promote local trace JSON to MLflow GenAI tracing and evaluation once generated answers are introduced.
+- Add a small evaluation dataset and scorer-based GenAI quality checks.
+- Package the RAG workflow behind Model Serving or AI Gateway if an interactive assistant is required.
 - Add Databricks secret scope setup for enterprise credentials.
 - Add customer-specific CI/CD only when the target toolchain is known.
 - Add richer source-specific extractors as real customer artifacts reveal gaps.

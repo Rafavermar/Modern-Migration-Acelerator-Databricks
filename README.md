@@ -57,11 +57,11 @@ Full solution technologies:
 - Neo4j AuraDB for graph exploration and impact analysis.
 - Databricks Vector Search.
 - RAG/search over legacy artifacts and generated blueprints.
-- MLflow Tracking or MLflow Tracing.
+- MLflow Tracking and starter tracing for retrieval and generated answers.
 - Databricks Model Serving.
 - Enterprise CI/CD integration through the customer standard toolchain.
 
-The first deploy validates the Databricks assessment backbone. Neo4j, Vector Search and MLflow are activated as soon as the Full Trial workspace and AuraDB credentials are available.
+The first deploy validates the Databricks assessment backbone. Neo4j, Vector Search, RAG and MLflow then build on the same governed outputs.
 
 ## Outputs
 
@@ -254,6 +254,8 @@ More detail is in `docs/04_LOCAL_SQLSERVER_FIXTURE.md`.
 
 The SQL Server container is a developer fixture. In a real customer implementation, SQL Server metadata should usually be exported with approved read-only catalog queries and delivered to the metadata landing area.
 
+If the laptop is shut down, open Docker Desktop and rerun `scripts/bootstrap_sqlserver.*` next time. The database persists in the Docker volume; the fixture is only needed when you want to inspect or regenerate SQL Server metadata.
+
 ## Full Databricks trial timing
 
 Start the full Databricks trial when you are ready to run:
@@ -433,6 +435,8 @@ Default dev LLM endpoint:
 - `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`
 
 This calls a Databricks Foundation Model API chat endpoint, writes `local_outputs/rag/latest_llm_answer.md` and logs the generation artifacts to MLflow when `-LogMlflow` is used.
+
+Foundation Model calls consume Databricks trial credits. Use retrieval-only mode while tuning metadata and index quality; use `-GenerateAnswer` for final checks, screenshots and demos. Dev defaults are intentionally small: `databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=700`, `RAG_LLM_TEMPERATURE=0.0`.
 
 Risk and review priority are calculated by the accelerator from metadata such as asset type, dependencies, row counts and criticality. Customers improve scoring by providing richer metadata exports; they do not need to manually tag every artifact before the first run.
 

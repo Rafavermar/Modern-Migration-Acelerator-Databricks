@@ -237,7 +237,7 @@ Expected local outputs:
 - `local_outputs/rag/latest_answer.md`: readable evidence brief for a migration reviewer.
 - `local_outputs/rag/latest_trace.json`: trace-shaped payload for later MLflow GenAI evaluation.
 
-This is not yet an autonomous assistant. It retrieves evidence and builds a deterministic brief so the team can validate retrieval quality before adding an LLM.
+Base retrieval mode is not an autonomous assistant. It retrieves evidence and builds a deterministic brief so the team can validate retrieval quality before using generated answers.
 
 How to interpret it:
 
@@ -264,7 +264,7 @@ Where to see it:
 - Without `-LogMlflow`: outputs are local files under `local_outputs/rag/`.
 - With `-LogMlflow`: open Databricks `Experiments`, then the experiment from `MLFLOW_EXPERIMENT_NAME`.
 - The command also prints direct `View run` and `View experiment` links; use those links for validation and screenshots.
-- Full GenAI traces and evaluation runs appear later, after an LLM-backed workflow is instrumented.
+- Generated-answer runs add manual MLflow spans for retrieval and generation. Scorer-based GenAI evaluation runs are added in the next hardening step.
 
 If `Experiments` is empty after `-LogMlflow`, check the script output for `MLflow tracking URI`. It should be `databricks://mma-fulltrial` or the customer profile, not a local `mlruns` path.
 Also clear UI filters and search for `modern-migration-accelerator`.
@@ -289,6 +289,14 @@ Where to see the LLM endpoint:
 - Databricks `Serving` page shows Foundation Model API endpoints.
 - The run output prints `LLM endpoint: <name>`.
 - MLflow run artifacts show `latest_generation.json` and `latest_llm_answer.md`.
+
+Credit guardrails for Foundation Models:
+
+- `-GenerateAnswer` consumes Databricks trial credits because it calls a hosted chat model.
+- Use retrieval-only mode while tuning metadata, Vector Search and screenshots that do not require generated text.
+- Use generated-answer mode for final validation, demo capture and targeted examples.
+- Keep dev defaults unless needed: `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=700`, `RAG_LLM_TEMPERATURE=0.0`.
+- Monitor `Manage Trial` and workspace usage if running many questions.
 
 ## 11. Publish to Neo4j
 
