@@ -438,6 +438,14 @@ This calls a Databricks Foundation Model API chat endpoint, writes `local_output
 
 Foundation Model calls consume Databricks trial credits. Use retrieval-only mode while tuning metadata and index quality; use `-GenerateAnswer` for final checks, screenshots and demos. Dev defaults are intentionally small: `databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=700`, `RAG_LLM_TEMPERATURE=0.0`.
 
+Run the starter RAG evaluation set:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_eval_dev.ps1
+```
+
+This reads `contracts/rag_eval_questions.json`, runs a few retrieval-only questions and writes `local_outputs/rag_eval/latest_eval.md`. Add `-GenerateAnswer` only when you intentionally want to evaluate generated answers and consume Foundation Model credits.
+
 Risk and review priority are calculated by the accelerator from metadata such as asset type, dependencies, row counts and criticality. Customers improve scoring by providing richer metadata exports; they do not need to manually tag every artifact before the first run.
 
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.

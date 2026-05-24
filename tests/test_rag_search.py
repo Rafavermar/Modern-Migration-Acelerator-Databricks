@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -16,6 +17,7 @@ from modern_migration_accelerator.rag_search import (
     default_mlflow_tracking_uri,
     extract_chat_content,
     parse_vector_search_rows,
+    resolve_databricks_executable,
 )
 
 
@@ -93,6 +95,10 @@ class RagSearchTests(unittest.TestCase):
         response = {"choices": [{"message": {"content": "Grounded answer."}}]}
 
         self.assertEqual(extract_chat_content(response), "Grounded answer.")
+
+    def test_resolve_databricks_executable_prefers_env_override(self) -> None:
+        with patch.dict("os.environ", {"DATABRICKS_CLI": "C:/tools/databricks.exe"}):
+            self.assertEqual(resolve_databricks_executable(), "C:/tools/databricks.exe")
 
 
 if __name__ == "__main__":

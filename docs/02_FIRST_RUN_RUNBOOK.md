@@ -254,7 +254,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup_dev_env.ps1 -InstallGen
 powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?" -LogMlflow
 ```
 
-The MLflow run logs the query, retrieved chunk count and local artifacts to `MLFLOW_EXPERIMENT_NAME`. Full MLflow GenAI tracing and scorer-based evaluation should be added when an LLM-generated response is introduced.
+The MLflow run logs the query, retrieved chunk count and local artifacts to `MLFLOW_EXPERIMENT_NAME`. Generated-answer runs also log answer artifacts and manual trace spans. Scorer-based evaluation is the next hardening step.
 
 `setup_dev_env.ps1 -InstallGenAiDeps` only installs optional MLflow dependencies. `-LogMlflow` performs the same RAG/search query and then records the run and artifacts in Databricks MLflow.
 The script uses `MLFLOW_TRACKING_URI` if set; otherwise it uses `databricks://<DATABRICKS_PROFILE>`.
@@ -297,6 +297,28 @@ Credit guardrails for Foundation Models:
 - Use generated-answer mode for final validation, demo capture and targeted examples.
 - Keep dev defaults unless needed: `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=700`, `RAG_LLM_TEMPERATURE=0.0`.
 - Monitor `Manage Trial` and workspace usage if running many questions.
+
+Starter RAG evaluation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_eval_dev.ps1
+```
+
+What it does:
+
+- Reads `contracts/rag_eval_questions.json`.
+- Runs each question against Vector Search.
+- Scores whether expected terms/assets appear in the retrieved evidence and optional generated answer.
+- Writes `local_outputs/rag_eval/latest_eval.json` and `latest_eval.md`.
+- Returns success by default even when a case misses, so reviewers can inspect gaps without breaking a demo run. Add `-FailOnMiss` for stricter regression checks.
+
+Optional generated-answer evaluation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_eval_dev.ps1 -GenerateAnswer -LogMlflow
+```
+
+Use this sparingly in the trial workspace because it calls the Foundation Model endpoint once per eval case.
 
 ## 11. Publish to Neo4j
 
@@ -435,6 +457,12 @@ Issue: `UnicodeEncodeError` after `rag_search_dev.ps1 -LogMlflow` on Windows.
 Cause: MLflow prints a Unicode run URL marker that can fail in legacy PowerShell encodings.
 
 Fix: the RAG/search Python entrypoint configures stdout/stderr as UTF-8 before logging to MLflow.
+
+Issue: `PermissionError: [WinError 5] Acceso denegado` when a local Python utility invokes `databricks`.
+
+Cause: some locked-down Windows shells cannot execute the Databricks CLI app alias from Python subprocesses.
+
+Fix: install Databricks CLI normally, or set `DATABRICKS_CLI` in `.env` to the explicit `databricks.exe` path. The RAG utilities resolve that path before calling the CLI.
 
 ## 14. Decide next phase
 

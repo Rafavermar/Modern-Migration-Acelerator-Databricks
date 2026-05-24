@@ -181,6 +181,8 @@ Outputs:
 - `local_outputs/rag/latest_trace.json`: MLflow-ready trace payload.
 - `local_outputs/rag/latest_generation.json`: raw LLM response when `-GenerateAnswer` is used.
 - `local_outputs/rag/latest_llm_answer.md`: generated answer grounded in retrieved evidence.
+- `local_outputs/rag_eval/latest_eval.json`: lightweight retrieval/generation evaluation results.
+- `local_outputs/rag_eval/latest_eval.md`: reviewer-friendly evaluation summary.
 
 Activation steps:
 
@@ -280,6 +282,7 @@ databricks --profile mma-fulltrial vector-search-endpoints get-endpoint mma-vect
 databricks --profile mma-fulltrial vector-search-indexes get-index migration_accelerator_dev.gold.semantic_legacy_documents_vs
 powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk assets should be migrated first?"
 powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which high risk assets should be migrated first?"
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_eval_dev.ps1
 ```
 
 Programmatic query options:
@@ -305,6 +308,16 @@ Foundation Model usage:
 - Defaults are intentionally small: `RAG_LLM_MAX_TOKENS=700` and `RAG_LLM_TEMPERATURE=0.0`.
 - Foundation Model calls consume workspace credits. Use them for final validation, screenshots and demos; use retrieval-only mode while tuning metadata and index quality.
 - Watch Databricks `Manage Trial` and billing/usage pages during repeated tests. Do not run loops over many questions until an evaluation budget is agreed.
+
+Starter evaluation:
+
+- Case file: `contracts/rag_eval_questions.json`.
+- Script: `scripts/rag_eval_dev.*`.
+- Default mode: retrieval-only, no Foundation Model call.
+- Generated-answer mode: add `-GenerateAnswer`; this calls the chat endpoint once per case.
+- Scoring: simple expected-term and expected-asset matching over retrieved rows, retrieval brief and optional generated answer.
+- Purpose: catch obvious regressions in retrieval/prompt behavior before screenshots, demos or customer workshops.
+- Boundary: this is not a replacement for MLflow GenAI judges or human review.
 
 Interpretation:
 
@@ -347,9 +360,10 @@ What the two MLflow commands do:
 - `setup_dev_env.ps1 -InstallGenAiDeps` installs the optional `mlflow[databricks]` dependency into the local virtual environment.
 - `rag_search_dev.ps1 -LogMlflow` runs the same retrieval brief workflow and then logs params, metric `retrieved_chunks` and artifacts to the configured MLflow experiment.
 - `rag_search_dev.ps1 -GenerateAnswer -LogMlflow` also logs the LLM endpoint, generated answer length, generation JSON and answer markdown.
+- `rag_eval_dev.ps1 -LogMlflow` logs aggregate eval pass metrics and the eval summary artifacts.
 - Tracking target: `MLFLOW_TRACKING_URI` when set, otherwise `databricks://<DATABRICKS_PROFILE>`.
 
-This is starter MLflow Tracking plus manual tracing for retrieval and LLM generation. Evaluator-based GenAI quality scoring is the next hardening step.
+This is starter MLflow Tracking plus manual tracing for retrieval and LLM generation. The included eval harness is a lightweight regression check; evaluator-based GenAI quality scoring is the next hardening step.
 
 Trace and evaluate when generated answers exist:
 

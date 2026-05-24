@@ -1,0 +1,26 @@
+{
+  "schema": "modern_migration_accelerator.rag_eval_cases.v1",
+  "cases": [
+    {
+      "id": "orders_first_review",
+      "question": "Which order assets need the first migration review?",
+      "expected_terms": ["order", "risk", "priority"],
+      "expected_assets": ["ds_synapse_customer_orders"],
+      "min_score": 0.6
+    },
+    {
+      "id": "high_risk_migration",
+      "question": "Which high risk legacy assets should be migrated first?",
+      "expected_terms": ["high", "risk", "migration"],
+      "expected_assets": [],
+      "min_score": 0.6
+    },
+    {
+      "id": "sqlserver_scope",
+      "question": "Which SQL Server assets are in the migration scope?",
+      "expected_terms": ["sql server", "legacysales"],
+      "expected_assets": ["CustomerOrders", "FactOrders"],
+      "min_score": 0.5
+    }
+  ]
+}

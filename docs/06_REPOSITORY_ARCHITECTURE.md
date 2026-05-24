@@ -68,6 +68,7 @@ Use this map when validating the workspace manually.
 | Foundation Model chat endpoint | `AI/ML` > `Serving` or `AI Gateway`, depending workspace UI | `databricks-gemma-3-12b` |
 | RAG/search brief | Local repo output unless MLflow logging is enabled | `local_outputs/rag/latest_answer.md`, `latest_search.json`, `latest_trace.json` |
 | Generated RAG answer | Local repo output; MLflow artifact when `-LogMlflow` is enabled | `local_outputs/rag/latest_llm_answer.md`, `latest_generation.json` |
+| RAG eval summary | Local repo output; MLflow artifact when `-LogMlflow` is enabled | `local_outputs/rag_eval/latest_eval.md`, `latest_eval.json` |
 | MLflow starter run | `Experiments` | Experiment from `MLFLOW_EXPERIMENT_NAME`, default `/Shared/modern-migration-accelerator` |
 
 Do not expect `mma-vector-search-dev` to appear under `AI/ML > Serving` as a normal user-created serving endpoint. Vector Search endpoints are managed separately from Model Serving endpoints. The index is visible and governed in Unity Catalog. The endpoint is easiest to verify with:
@@ -144,12 +145,15 @@ Credit guardrails:
 | `scripts/create_vector_search_dev.*` | Create/sync the dev Vector Search endpoint and index. |
 | `scripts/query_vector_search_dev.*` | Query the Vector Search index with a natural-language question. |
 | `scripts/rag_search_dev.*` | Query Vector Search, build a grounded retrieval brief, optionally call a Foundation Model and optionally log to MLflow. |
+| `scripts/rag_eval_dev.*` | Run a small RAG retrieval/generation evaluation set. |
 | `scripts/publish_neo4j_graph.*` | Publish the normalized asset and dependency graph to Neo4j AuraDB. |
 | `scripts/verify_neo4j_graph.*` | Verify the latest Neo4j graph publication. |
 | `scripts/query_sqlserver_fixture.*` | Inspect the local SQL Server fixture without SSMS. |
 | `src/modern_migration_accelerator/pipelines/run_accelerator.py` | Serverless-safe assessment entrypoint. |
 | `src/modern_migration_accelerator/pipelines/run_target_demo.py` | Demo consumer of the generated blueprint. |
 | `src/modern_migration_accelerator/pipelines/run_semantic_index_prep.py` | Builds sanitized chunks from legacy artifacts and generated outputs. |
+| `src/modern_migration_accelerator/rag_search.py` | Vector Search retrieval, grounded brief generation, optional LLM answer and MLflow logging. |
+| `src/modern_migration_accelerator/rag_eval.py` | Lightweight RAG evaluation over expected terms/assets. |
 | `src/modern_migration_accelerator/neo4j_graph.py` | Builds and publishes the Neo4j graph payload. |
 
 ## Extractor Map
@@ -180,6 +184,7 @@ Improving extractors usually means adding support for more real-world source sha
 | `rag_search_dev.*` | `src/modern_migration_accelerator/rag_search.py` | Local Python plus Databricks Vector Search API | `local_outputs/rag/*` | Local files; MLflow if `-LogMlflow` |
 | `rag_search_dev.* -GenerateAnswer` | `rag_search.py::invoke_chat_endpoint()` | Databricks Foundation Model API chat endpoint | `latest_generation.json`, `latest_llm_answer.md` | Local files; Databricks `Serving`; MLflow artifacts |
 | `rag_search_dev.* -LogMlflow` | `rag_search.py::log_to_mlflow()` | MLflow Tracking | run params, metric and artifacts | Databricks `Experiments` |
+| `rag_eval_dev.*` | `src/modern_migration_accelerator/rag_eval.py` | Local Python plus Vector Search, optional Foundation Model | `local_outputs/rag_eval/*` | Local files; MLflow if `-LogMlflow` |
 | `publish_neo4j_graph.*` | `neo4j_graph.py` | Local Python plus Neo4j driver | graph nodes and relationships | Neo4j Aura Query/Explore |
 
 ## Execution Order
@@ -196,8 +201,9 @@ Improving extractors usually means adding support for more real-world source sha
 10. Create and query the Vector Search index.
 11. Build a RAG-ready retrieval brief from Vector Search.
 12. Optionally generate a grounded LLM answer and log it to MLflow.
-13. Publish to Neo4j.
-14. Add scorer-based GenAI evaluation and serving after retrieval behavior is trusted.
+13. Run the starter RAG evaluation set.
+14. Publish to Neo4j.
+15. Add scorer-based GenAI evaluation and serving after retrieval behavior is trusted.
 
 ## Metadata Modes
 
@@ -250,10 +256,11 @@ Confirmed working:
 - RAG-ready search utility that writes local evidence, answer brief and trace JSON.
 - Foundation Model grounded answer generation with `databricks-gemma-3-12b`.
 - Databricks MLflow experiment logging for retrieval, generation artifacts and manual trace spans.
+- Starter RAG evaluation harness over expected terms/assets.
 
 Remaining product hardening:
 
-- Add a small evaluation dataset and scorer-based GenAI quality checks.
+- Replace lightweight eval matching with scorer-based GenAI quality checks when customer-quality expected answers exist.
 - Package the RAG workflow behind Model Serving or AI Gateway if an interactive assistant is required.
 - Add Databricks secret scope setup for enterprise credentials.
 - Add customer-specific CI/CD only when the target toolchain is known.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -102,8 +103,34 @@ def default_llm_endpoint() -> str:
     return os.environ.get("DATABRICKS_LLM_ENDPOINT", "databricks-gemma-3-12b").strip()
 
 
+def resolve_databricks_executable() -> str:
+    explicit = os.environ.get("DATABRICKS_CLI", "").strip()
+    if explicit:
+        return explicit
+
+    for candidate in ("databricks", "databricks.exe", "databricks.cmd"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+
+    if os.name == "nt":
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            winget_root = Path(local_app_data) / "Microsoft" / "WinGet" / "Packages"
+            matches = sorted(winget_root.glob("Databricks.DatabricksCLI_*/*databricks.exe"))
+            for match in matches:
+                if match.is_file():
+                    return str(match)
+
+            windows_apps = Path(local_app_data) / "Microsoft" / "WindowsApps" / "databricks.exe"
+            if windows_apps.exists():
+                return str(windows_apps)
+
+    return "databricks"
+
+
 def databricks_command(profile: str) -> list[str]:
-    command = ["databricks"]
+    command = [resolve_databricks_executable()]
     if profile:
         command.extend(["--profile", profile])
     return command
