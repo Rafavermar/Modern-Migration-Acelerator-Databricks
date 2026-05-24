@@ -1,5 +1,7 @@
 # Demo And Packaging
 
+Internal guide for screenshots, walkthroughs, release packaging and promo video planning.
+
 Use this document only after the end-to-end dev flow is green.
 
 ## Finished Product Boundary
