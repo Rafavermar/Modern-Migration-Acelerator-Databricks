@@ -31,3 +31,6 @@ local_outputs/
 mlruns/
 mlartifacts/
 mlflow.db
+
+# Local demo screenshots that may contain workspace identity, emails or tenant details.
+docs/assets/_private_demo/
