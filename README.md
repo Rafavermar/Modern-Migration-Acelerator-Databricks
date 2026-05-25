@@ -92,6 +92,20 @@ Typical execution path after review:
 5. Implement the selected pattern: managed Delta ingestion, Unity Catalog external table, Unity Catalog volume, Lakehouse Federation, or a source-specific connector.
 6. Re-run the accelerator after each metadata refresh to keep the migration backlog current.
 
+## ROI and cost model
+
+The product reduces discovery, dependency analysis and migration planning effort. It does not remove the engineering work needed to build the approved target implementation.
+
+New assessment costs are usually limited to Databricks job compute, Databricks Vector Search when semantic search is enabled, optional Foundation Model calls for generated RAG answers, optional Neo4j AuraDB for graph exploration and small metadata storage. Existing ADF, Synapse, SQL Server and data lake costs normally remain outside the product cost model unless live federation or connector-based ingestion is activated.
+
+Price with current vendor calculators before each customer run. Use retrieval-only RAG while tuning metadata and reserve Foundation Model generation for final reviews, screenshots and demos.
+
+## SQL Server boundary
+
+SQL Server is not automatically replaced by Databricks. Operational OLTP systems normally remain in SQL Server, Azure SQL or SQL Managed Instance and feed Databricks through export-only metadata, federation, CDC or approved connectors.
+
+Migrate SQL Server assets into Databricks when they are analytical tables, reporting marts, batch ETL outputs, historical datasets or SQL logic used for BI and lakehouse workloads. The usual target is Unity Catalog Delta tables, Databricks SQL views, Lakeflow jobs, notebooks or PySpark/SQL transformations. Decommission a SQL Server object only after ownership, validation and cutover are approved.
+
 ## Outputs
 
 The required audit and gold outputs are:

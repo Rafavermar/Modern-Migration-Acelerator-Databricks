@@ -162,20 +162,34 @@ Activate them when there is a clear workflow:
 
 Do not activate them before credentials, permissions, security review and first Databricks outputs are ready.
 
-## ROI and Cost Lens
+## ROI and Cost Model
 
-The ROI comes from reducing manual discovery time, not from replacing engineers.
+The ROI comes from reducing manual discovery and planning time. It does not come from replacing migration engineers.
 
-- Time: days instead of weeks to create an initial asset inventory, dependency map, risk register and target blueprint.
-- Effort: analysts review generated priorities instead of manually reconciling ADF, Synapse, SQL Server, notebooks and SQL files from scratch.
-- Cost: demo runs use Databricks Full Trial credits and Neo4j AuraDB trial capacity. Paid costs come from Databricks serverless job DBUs, Vector Search units, Model Serving usage, Neo4j AuraDB capacity and cloud storage.
-- Governance: every customer estimate must use measured run duration, asset count, selected cloud, region and live vendor pricing before being quoted.
+| Area | Practical ROI |
+| --- | --- |
+| Discovery time | Initial inventory, dependencies, risk and blueprint in days instead of weeks of manual spreadsheet work. |
+| Review effort | Architects review generated priorities and evidence instead of reconciling ADF, Synapse, SQL Server, notebooks and SQL scripts from scratch. |
+| Migration risk | Dependency graph, risk scoring and DQ backlog reduce blind cutover decisions. |
+| Reuse | The same bundle, contracts and outputs can be reused across customers and refreshed after new exports. |
 
-Current reference points:
+Additional assessment costs are normally limited to:
 
-- Databricks pricing: https://www.databricks.com/product/pricing
-- Databricks serverless and Vector Search billing units: https://docs.databricks.com/aws/en/resources/pricing
-- Neo4j AuraDB pricing: https://neo4j.com/pricing/
+- Databricks serverless job compute for parsing, Delta writes and semantic document preparation.
+- Databricks Vector Search endpoint, index sync and query usage when semantic search is activated.
+- Databricks Foundation Model endpoint calls only when generated RAG answers are requested.
+- Neo4j AuraDB if the customer wants visual graph exploration outside Delta/Databricks.
+- Small cloud storage footprint for metadata exports, Delta outputs and local artifacts.
+
+Costs that are usually not new assessment costs:
+
+- Existing ADF, Synapse, SQL Server or lake storage subscriptions.
+- Existing Databricks workspace/platform commitments, if already covered by the customer agreement.
+- MLflow Tracking as a separate tool; it is part of the Databricks workspace usage model.
+
+Cost guardrail:
+
+Run the first assessment in retrieval-only mode, measure actual job duration, asset count, Vector Search usage and Neo4j size, then price the customer production setup using current vendor pricing for their cloud, region and contract. Do not quote fixed costs from this repository.
 
 ## Bottom Line
 
@@ -183,9 +197,21 @@ The accelerator is strongest as a plug-and-play Databricks migration assessment 
 
 It should complement specialized tools, not compete with them. Its value is speed, focus and Databricks-oriented migration decisions.
 
+## SQL Server Modernization Boundary
+
+SQL Server is not automatically replaced by Databricks.
+
+Keep SQL Server, Azure SQL or SQL Managed Instance when it is operational OLTP storage for an application, transactional workload or source system of record. In that case, Databricks should consume it through export-only metadata discovery, Lakehouse Federation for live read access, CDC/connectors or selected Delta ingestion.
+
+Migrate SQL Server content into Databricks when the workload is analytical: reporting tables, marts, batch ETL, stored procedures that build analytics outputs, BI serving layers or historical data used for lakehouse workloads. Those assets typically land as Delta tables in Unity Catalog, Databricks SQL views/materialized views, Lakeflow Jobs, notebooks or PySpark/SQL transformations.
+
+Decommission SQL Server only after the operational owner confirms that no application still requires it, validation has passed and cutover has been approved.
+
 ## Reference Points
 
 - Databricks Lakehouse Federation: https://docs.databricks.com/en/query-federation/
 - Databricks Unity Catalog lineage: https://docs.databricks.com/en/data-governance/unity-catalog/data-lineage.html
+- Databricks pricing: https://www.databricks.com/product/pricing
 - Microsoft Purview Data Map scans and ingestion: https://learn.microsoft.com/en-us/purview/data-map-scan-ingestion
 - Azure Database Migration Service: https://learn.microsoft.com/en-us/azure/dms/
+- Neo4j AuraDB pricing: https://neo4j.com/pricing/

@@ -271,6 +271,16 @@ Use export-only discovery first unless the customer already has approved network
 
 The local Docker fixture is optional. A customer does not need Docker if they can provide SQL Server metadata exports.
 
+### Where SQL Server goes
+
+The accelerator does not decide that every SQL Server database must move to Databricks.
+
+- Keep operational OLTP databases in SQL Server, Azure SQL or SQL Managed Instance when applications still write to them.
+- Move analytical marts, reporting tables, batch ETL outputs and BI-facing SQL logic to Unity Catalog Delta tables, Databricks SQL, Lakeflow jobs or notebooks.
+- Use Lakehouse Federation for live read access, validation, coexistence or phased migration. Federation is access, not decommissioning.
+- Use connector-based ingestion when Databricks must own curated Delta copies.
+- Decommission SQL Server objects only after owners approve cutover and reconciliation checks pass.
+
 ### Pattern 1: Export-only discovery
 
 Use when the customer wants the fastest and least invasive assessment.
