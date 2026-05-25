@@ -105,6 +105,22 @@ Review priority is derived from risk and dependencies:
 
 Customers can improve the quality of the scoring by providing richer exports. Useful input fields include `criticality`, `row_count`, `depends_on`, owner, object type, storage location and module definitions. The rules are deterministic and intentionally simple; customer-specific weights can be added later without changing the output model.
 
+## Artifact categorization contract
+
+The customer does not label every file manually. The accelerator classifies artifacts from file type, folder convention and file content.
+
+| Input family | Expected location | Key metadata that improves results |
+| --- | --- | --- |
+| ADF pipelines, datasets, linked services, triggers | `adf/` | activity references, dataset references, linked services, schedules, parameters. |
+| Synapse inventory | `synapse/inventory/` | database, schema, table/object name, object type, row count, owner, criticality, dependencies. |
+| Synapse SQL and external table DDL | `synapse/sql/` | object names, storage locations, file formats, referenced tables/views. |
+| Synapse notebooks | `synapse/notebooks/` | SQL cells, table references, notebook names, linked service references. |
+| SQL Server inventory | `sqlserver/inventory/` | object type, row count, owner, criticality, module definitions, dependency extracts. |
+| Lakebridge Analyzer | `synapse/lakebridge/` | complexity, functions, source objects, target objects, read/write references. |
+| Documentation | `docs/` | business context, migration notes, runbooks, known risks. |
+
+The most valuable customer-provided fields are `criticality`, `row_count`, `owner`, `depends_on`, `location`, `format` and module definitions. Missing fields do not block the run; they reduce scoring precision.
+
 ## Extractor boundaries
 
 Extractors are the source-specific adapters that convert raw exports into the common metadata model:

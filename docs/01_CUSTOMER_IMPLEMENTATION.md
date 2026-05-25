@@ -81,6 +81,23 @@ Recommended folders:
 /Volumes/<catalog>/landing/legacy_metadata/docs/
 ```
 
+Artifact intake matrix:
+
+| Customer artifact | Put it under | Format | Normalized as | Why it matters |
+| --- | --- | --- | --- | --- |
+| ADF pipelines, activities | `adf/` | `.json` | `adf_pipeline`, `adf_activity` | Orchestration, dependencies and code-migration effort. |
+| ADF datasets | `adf/` | `.json` | `adf_dataset`, data objects, storage paths | Source/target object mapping and ownership checks. |
+| ADF linked services | `adf/` | `.json` | `adf_linked_service` | Secret, connection and network migration work. |
+| ADF triggers | `adf/` | `.json` | `adf_trigger` | Schedule mapping to Databricks jobs. |
+| Synapse inventory | `synapse/inventory/` | `.csv` | `synapse_table`, `synapse_view`, database assets | Table estate, row counts, owners and criticality. |
+| Synapse external table DDL | `synapse/sql/` | `.sql` | `synapse_external_table`, storage references | External location, volume and security mapping. |
+| Synapse notebooks | `synapse/notebooks/` | `.ipynb` | `synapse_notebook`, notebook references | Code rewrite effort and referenced objects. |
+| SQL scripts, views, procedures | `synapse/sql/` or `sqlserver/inventory/` | `.sql`, `.csv` | `sql_script`, SQL Server assets, references | Transformation rewrite and dependency evidence. |
+| Lakebridge Analyzer report | `synapse/lakebridge/` | `.xlsx` | `lakebridge_sql_program`, referenced objects | Official SQL complexity and object cross-reference evidence. |
+| Architecture/docs/runbooks | `docs/` | `.md`, `.txt`, `.json`, `.sql` | semantic documents | Search/RAG context, not primary scoring unless parsed as assets. |
+
+The accelerator searches recursively, so exact subfolders are a convention, not a hard parser dependency. Keep the convention because it makes onboarding, screenshots and customer review simpler.
+
 The baseline CSV shape is defined in:
 
 ```text
@@ -147,6 +164,16 @@ Interpretation flow:
 7. Use `gold.semantic_legacy_documents` as the source table for semantic indexing.
 
 Neo4j makes graph exploration visual. Vector Search makes discovery semantic. Both build on these Delta outputs.
+
+Priority and risk interpretation:
+
+- `p1` means review first. It does not mean "migrate automatically".
+- `risk_score` increases with criticality, dependency count, large row counts, code/orchestration migration, external table mapping and connection/security work.
+- `risk_level` explains the review posture: high, medium or low.
+- `target_pattern` is the recommended Databricks implementation direction, not generated production code.
+- `data_quality_plan` is the validation backlog the delivery team should execute during migration.
+
+Customers improve scoring quality by providing `criticality`, `owner`, `row_count`, `depends_on`, storage locations, module definitions and Lakebridge complexity evidence where available.
 
 ## How migration execution starts
 

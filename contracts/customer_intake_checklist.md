@@ -38,6 +38,15 @@ Use this checklist before the first real customer metadata run.
 - SQL Server inventory folder agreed, if applicable.
 - Documentation folder agreed, if applicable.
 
+## Scoring Inputs
+
+- Criticality scale agreed: `critical/high/medium/low`, `tier1/tier2`, or `p1/p2/p3`.
+- Owners captured where available.
+- Row counts or table sizes exported where available.
+- Dependency fields or SQL dependency extracts exported where available.
+- Storage locations and file formats exported for external tables.
+- Lakebridge Analyzer report included when SQL complexity evidence exists.
+
 ## Source Metadata
 
 - ADF pipelines exported.
