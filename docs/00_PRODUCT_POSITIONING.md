@@ -60,6 +60,12 @@ Unity Catalog captures runtime lineage for Databricks queries, jobs, notebooks a
 
 Use this accelerator for pre-migration legacy analysis, not as a replacement for runtime Databricks lineage.
 
+### Databricks Lakebridge
+
+Lakebridge is the right tool for automated code analysis, SQL complexity scoring, transpilation assistance and reconciliation workflows. If the customer only needs SQL conversion or reconciliation, use Lakebridge directly.
+
+Use this accelerator as the decision layer around Lakebridge outputs: combine Lakebridge Analyzer reports with ADF, Synapse, SQL Server, notebook and documentation exports, then produce risk, dependency, graph, blueprint, semantic search and RAG surfaces.
+
 ### Lakehouse Federation
 
 Lakehouse Federation supports live query access to external systems such as SQL Server and Azure Synapse. If the only requirement is live access without migration assessment, use federation directly.

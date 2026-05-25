@@ -70,6 +70,7 @@ Synapse:
 - External tables and lake paths.
 - Notebook SQL references.
 - SQL scripts and DDL references.
+- Optional Databricks Lakebridge Analyzer `.xlsx` reports for SQL program complexity and object cross-references.
 
 SQL Server:
 
@@ -112,6 +113,7 @@ Extractors are the source-specific adapters that convert raw exports into the co
 - Synapse or SQL Server CSV inventory to assets.
 - SQL scripts and DDL to object references.
 - Notebooks to referenced tables, views and SQL snippets.
+- Lakebridge Analyzer reports to SQL program assets and read/write object dependencies.
 - Generated Delta outputs to semantic chunks for Vector Search.
 
 They live mainly in:

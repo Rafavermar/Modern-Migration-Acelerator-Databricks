@@ -51,6 +51,14 @@
     "sql_script": {
       "domain": "code",
       "description": "Legacy SQL script, procedure or DDL artifact"
+    },
+    "lakebridge_sql_program": {
+      "domain": "code",
+      "description": "SQL program reported by Databricks Lakebridge Analyzer"
+    },
+    "lakebridge_referenced_object": {
+      "domain": "data_object",
+      "description": "Object reference extracted from a Lakebridge Analyzer program/object cross-reference"
     }
   },
   "relationship_types": {

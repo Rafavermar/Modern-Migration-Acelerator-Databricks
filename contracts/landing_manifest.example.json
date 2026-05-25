@@ -12,8 +12,14 @@
     {
       "source_system": "azure_synapse",
       "path": "synapse/",
-      "formats": ["csv", "sql", "ipynb"],
-      "description": "Synapse inventory, serverless external table DDL, SQL scripts and notebooks"
+      "formats": ["csv", "sql", "ipynb", "xlsx"],
+      "description": "Synapse inventory, serverless external table DDL, SQL scripts, notebooks and optional Lakebridge Analyzer reports"
+    },
+    {
+      "source_system": "lakebridge_analyzer",
+      "path": "synapse/lakebridge/",
+      "formats": ["xlsx"],
+      "description": "Databricks Lakebridge Analyzer Excel report for SQL complexity and referenced object analysis"
     },
     {
       "source_system": "sql_server",

@@ -18,7 +18,7 @@ The image is the quick visual map. The Mermaid version below is the editable sou
 
 ```mermaid
 flowchart LR
-    A[Legacy estate\nADF, Synapse, SQL Server, notebooks, SQL, docs] --> B[Metadata landing\nUnity Catalog Volume]
+    A[Legacy estate\nADF, Synapse, SQL Server, notebooks, SQL, docs, Lakebridge] --> B[Metadata landing\nUnity Catalog Volume]
     B --> C[Databricks Asset Bundle\njobs + runtime scripts]
     C --> D[Assessment job\nparse, normalize, score, blueprint]
     D --> E[Delta outputs\nbronze, silver, gold, control]
@@ -160,6 +160,7 @@ Credit guardrails:
 | `src/modern_migration_accelerator/pipelines/run_accelerator.py` | Serverless-safe assessment entrypoint. |
 | `src/modern_migration_accelerator/pipelines/run_target_demo.py` | Demo consumer of the generated blueprint. |
 | `src/modern_migration_accelerator/pipelines/run_semantic_index_prep.py` | Builds sanitized chunks from legacy artifacts and generated outputs. |
+| `src/modern_migration_accelerator/xlsx.py` | Reads Lakebridge Analyzer `.xlsx` reports without adding external dependencies. |
 | `src/modern_migration_accelerator/rag_search.py` | Vector Search retrieval, grounded brief generation, optional LLM answer and MLflow logging. |
 | `src/modern_migration_accelerator/rag_eval.py` | Lightweight RAG evaluation over expected terms/assets. |
 | `src/modern_migration_accelerator/neo4j_graph.py` | Builds and publishes the Neo4j graph payload. |
@@ -170,11 +171,12 @@ In this project, an extractor means code that turns customer-provided artifacts 
 
 | Area | Current implementation | Function |
 | --- | --- | --- |
-| Source file discovery | `src/modern_migration_accelerator/discovery.py`, `run_accelerator.py::load_text_documents` | Finds supported `.json`, `.csv`, `.sql` and `.ipynb` files locally or in Unity Catalog volumes. |
+| Source file discovery | `src/modern_migration_accelerator/discovery.py`, `run_accelerator.py::load_text_documents` | Finds supported `.json`, `.csv`, `.sql`, `.ipynb` and `.xlsx` files locally or in Unity Catalog volumes. |
 | ADF JSON parsing | `run_accelerator.py::parse_adf_document`, `parse_adf_dataset_resource`, `parse_adf_linked_service_resource`, `parse_adf_trigger_resource` | Extracts pipelines, activities, datasets, linked services, triggers and references. |
 | Synapse and SQL Server inventory CSV | `run_accelerator.py::parse_synapse_csv` | Converts inventory rows into assets for Synapse, SQL Server and similar tabular metadata exports. |
 | SQL scripts and DDL | `run_accelerator.py::parse_sql_document`, `src/modern_migration_accelerator/parsers/sql.py` | Extracts SQL object references from scripts, views, procedures and external table DDL. |
 | Notebooks | `run_accelerator.py::parse_notebook_document` | Reads notebook cells and extracts SQL/table references. |
+| Lakebridge Analyzer | `run_accelerator.py::parse_lakebridge_analyzer_document`, `src/modern_migration_accelerator/xlsx.py` | Converts Analyzer `.xlsx` reports into SQL program assets, referenced objects and read/write dependencies. |
 | Semantic corpus | `run_semantic_index_prep.py` | Sanitizes, chunks and shapes searchable documents for Vector Search. |
 | SQL Server export fixture | `scripts/export_sqlserver_metadata.*`, `samples/sqlserver/extract/metadata_inventory.sql` | Produces a CSV inventory from SQL Server metadata. |
 
@@ -255,6 +257,7 @@ Read results in this order:
 Confirmed working:
 
 - Local SQL Server fixture, data inspection and metadata export.
+- Lakebridge Analyzer `.xlsx` parsing against the reference lab report.
 - Databricks bundle validation, deployment and serverless jobs.
 - Delta assessment outputs.
 - Target demo table creation.

@@ -78,7 +78,7 @@ scripts/run_accelerator_dev.sh
       -> resources/jobs.yml task parse_analyze_blueprint
       -> spark_python_task runs dbfs:/Volumes/<catalog>/landing/legacy_metadata/runtime/run_accelerator.py
       -> run_accelerator.py reads source_root with Spark binaryFile
-      -> parses JSON, CSV, SQL and notebook files
+      -> parses JSON, CSV, SQL, notebook and Lakebridge Analyzer files
       -> normalizes assets and dependencies
       -> builds risk, priority, blueprint, graph and DQ outputs
       -> writes Delta tables in <catalog>.control, bronze, silver and gold
@@ -299,6 +299,7 @@ Customer artifacts should go under:
 
 - `adf/`
 - `synapse/inventory/`
+- `synapse/lakebridge/`
 - `synapse/notebooks/`
 - `synapse/sql/`
 - `sqlserver/inventory/`
@@ -348,6 +349,38 @@ Extractor depth:
 - Need representative redacted artifacts.
 - Examples: parameterized ADF, dynamic SQL, Synapse notebooks, stored procedure dependencies, custom naming conventions, Purview exports.
 - Without real artifacts, inventing extractors creates fake confidence.
+
+## Databricks Synapse Migration Lab Review
+
+The official delivery lab is useful as reference material, not as code to copy into the product.
+
+What it confirmed:
+
+- Databricks frames Synapse migration as `Discover -> Design -> Execute -> Activate -> Enable -> Closeout`.
+- Lakebridge is the official complement for SQL analysis, transpilation support and reconciliation.
+- Discovery should include data assets, pipelines, consumers, security and operations/SLA evidence.
+- Execution and cutover remain controlled implementation work after assessment.
+
+What we adopted:
+
+- The product now accepts Lakebridge Analyzer `.xlsx` reports as assessment evidence.
+- Analyzer SQL programs become `lakebridge_sql_program` assets.
+- Analyzer object cross-references become referenced objects and read/write dependencies.
+- Lakebridge complexity feeds the risk register.
+- The report is also chunked for Vector Search/RAG.
+
+What we did not adopt:
+
+- We did not import the workshop notebooks or sample datasets.
+- We did not make Lakebridge a runtime dependency.
+- We did not turn the accelerator into an automatic code converter.
+- We did not add cutover or reconciliation automation before a customer needs it.
+
+Why:
+
+- Our product remains the migration decision layer.
+- Lakebridge remains the specialized code/reconcile tool.
+- Together they create a stronger delivery story without bloating the core path.
 
 Scoring weights:
 

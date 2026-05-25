@@ -74,6 +74,7 @@ Recommended folders:
 ```text
 /Volumes/<catalog>/landing/legacy_metadata/adf/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/inventory/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/lakebridge/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/notebooks/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/sql/
 /Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
@@ -99,6 +100,7 @@ The current parser supports these file families:
 - Synapse or SQL Server inventory extracts as `.csv`.
 - Synapse notebooks as `.ipynb`.
 - SQL scripts, views, procedures and external table DDL as `.sql`.
+- Databricks Lakebridge Analyzer reports as `.xlsx`.
 
 Source-specific extractors can become richer over time, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
 
@@ -168,6 +170,18 @@ Then the delivery team implements the chosen pattern:
 
 The accelerator can be re-run after new exports or implementation changes to refresh priorities and validate that the plan still matches the estate.
 
+## Lakebridge fit
+
+Lakebridge complements this accelerator. Use Lakebridge Analyzer when the customer has many Synapse or SQL Server SQL scripts and wants official Databricks complexity scoring, function inventory and object cross-references.
+
+Put the Analyzer `.xlsx` report in:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/synapse/lakebridge/
+```
+
+The accelerator reads that report, creates `lakebridge_sql_program` and `lakebridge_referenced_object` assets, adds read/write dependencies and uses Lakebridge complexity as risk evidence. Lakebridge transpile or reconcile remain separate execution/validation tools; their outputs should be reviewed before production use.
+
 To publish the graph after the first trusted run:
 
 ```powershell
@@ -202,6 +216,7 @@ For Synapse:
 - External table DDL or metadata extract.
 - Notebook exports.
 - SQL scripts, views, stored procedures and dependency extracts.
+- Optional Lakebridge Analyzer `.xlsx` report for SQL complexity, functions and referenced objects.
 
 For SQL Server:
 

@@ -13,8 +13,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from modern_migration_accelerator.xlsx import parse_xlsx_text_sheets, rows_as_dicts, xlsx_bytes_to_text
+
 SCRIPT_PATH = globals().get("__file__") or globals().get("filename") or sys.argv[0]
-SUPPORTED_EXTENSIONS = {".csv", ".ipynb", ".json", ".sql"}
+SUPPORTED_EXTENSIONS = {".csv", ".ipynb", ".json", ".sql", ".xlsx"}
 SPARK_FILE_PREFIXES = ("dbfs:/", "/Volumes/", "abfss://", "wasbs://", "s3://", "gs://")
 REFERENCE_PATTERN = re.compile(
     r"""
@@ -60,11 +62,16 @@ def load_text_documents(source_root: str, spark=None) -> list[TextDocument]:
         documents: list[TextDocument] = []
         for file_path in sorted(root.rglob("*")):
             if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
+                extension = file_path.suffix.lower()
+                if extension == ".xlsx":
+                    content = xlsx_bytes_to_text(file_path.read_bytes())
+                else:
+                    content = file_path.read_text(encoding="utf-8")
                 documents.append(
                     TextDocument(
                         path=str(file_path),
-                        content=file_path.read_text(encoding="utf-8"),
-                        extension=file_path.suffix.lower(),
+                        content=content,
+                        extension=extension,
                     )
                 )
         return documents
@@ -88,10 +95,12 @@ def _load_text_documents_with_spark(source_root: str, spark) -> list[TextDocumen
         extension = Path(row["path"]).suffix.lower()
         if extension not in SUPPORTED_EXTENSIONS:
             continue
+        content = bytes(row["content"])
+        text = xlsx_bytes_to_text(content) if extension == ".xlsx" else content.decode("utf-8")
         documents.append(
             TextDocument(
                 path=row["path"],
-                content=bytes(row["content"]).decode("utf-8"),
+                content=text,
                 extension=extension,
             )
         )
@@ -1042,6 +1051,136 @@ def parse_notebook_document(
         )
 
 
+def lakebridge_program_asset_id(program: str) -> str:
+    return stable_id("lakebridge_analyzer", "sql_program", program)
+
+
+def lakebridge_complexity_to_criticality(complexity: str) -> str | None:
+    normalized = complexity.strip().lower()
+    if normalized in {"very_high", "very high", "high"}:
+        return "high"
+    if normalized == "medium":
+        return "medium"
+    return None
+
+
+def lakebridge_operation_to_dependency_type(operation: str) -> str:
+    normalized = operation.strip().upper()
+    if normalized == "READ":
+        return "reads"
+    if normalized in {"WRITE", "CREATE", "DROP", "TRUNCATE"}:
+        return "writes"
+    return "references"
+
+
+def parse_lakebridge_analyzer_document(
+    document: TextDocument,
+    run_id: str,
+    discovered_at: str,
+    assets: dict[str, dict[str, Any]],
+    dependencies: list[dict[str, Any]],
+    dependency_keys: set[tuple[str, str, str]],
+) -> None:
+    sheets = parse_xlsx_text_sheets(document.content)
+    if "SQL Programs" not in sheets and "RAW_PROGRAM_OBJECT_XREF" not in sheets:
+        return
+
+    for row in rows_as_dicts(sheets.get("SQL Programs", [])):
+        program = row.get("source_file") or row.get("program_name")
+        if not program:
+            continue
+        program_name = row.get("program_name") or Path(program).name
+        complexity = row.get("complexity") or ""
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": lakebridge_program_asset_id(program),
+                "source_system": "lakebridge_analyzer",
+                "asset_type": "lakebridge_sql_program",
+                "asset_name": program_name,
+                "platform": "Databricks Labs",
+                "technology": "Lakebridge Analyzer SQL Program",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": lakebridge_complexity_to_criticality(complexity),
+                "row_count": None,
+                "metadata_json": sanitized_json(
+                    {
+                        "source_file": row.get("source_file"),
+                        "included": row.get("included"),
+                        "line_count": row.get("line_count"),
+                        "complexity": complexity,
+                        "statement_count": row.get("statement_count"),
+                        "script_category": row.get("script_category"),
+                        "categorization_metrics": row.get("categorization_metrics"),
+                    }
+                ),
+                "discovered_at": discovered_at,
+            },
+        )
+
+    for row in rows_as_dicts(sheets.get("RAW_PROGRAM_OBJECT_XREF", [])):
+        program = row.get("program")
+        object_name = row.get("object")
+        operation = row.get("operation") or "REFERENCE"
+        if not program or not object_name:
+            continue
+
+        program_id = lakebridge_program_asset_id(program)
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": program_id,
+                "source_system": "lakebridge_analyzer",
+                "asset_type": "lakebridge_sql_program",
+                "asset_name": Path(program).name,
+                "platform": "Databricks Labs",
+                "technology": "Lakebridge Analyzer SQL Program",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": None,
+                "row_count": None,
+                "metadata_json": sanitized_json({"source_file": program}),
+                "discovered_at": discovered_at,
+            },
+        )
+
+        object_id = stable_id("lakebridge_analyzer", "referenced_object", object_name)
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": object_id,
+                "source_system": "lakebridge_analyzer",
+                "asset_type": "lakebridge_referenced_object",
+                "asset_name": object_name,
+                "platform": "Legacy SQL",
+                "technology": "Lakebridge referenced SQL object",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": None,
+                "row_count": None,
+                "metadata_json": sanitized_json({"operation": operation, "count": row.get("count")}),
+                "discovered_at": discovered_at,
+            },
+        )
+        add_dependency(
+            dependencies,
+            dependency_keys,
+            {
+                "run_id": run_id,
+                "from_asset_id": program_id,
+                "to_asset_id": object_id,
+                "dependency_type": lakebridge_operation_to_dependency_type(operation),
+                "evidence": f"Lakebridge {operation} reference: {object_name}",
+                "confidence": 0.85,
+                "discovered_at": discovered_at,
+            },
+        )
+
+
 def parse_documents(
     documents: list[TextDocument],
     run_id: str,
@@ -1080,6 +1219,15 @@ def parse_documents(
             )
         elif document.extension == ".sql":
             parse_sql_document(document, run_id, discovered_at, assets, dependencies, dependency_keys)
+        elif document.extension == ".xlsx":
+            parse_lakebridge_analyzer_document(
+                document,
+                run_id,
+                discovered_at,
+                assets,
+                dependencies,
+                dependency_keys,
+            )
 
     return raw_rows, list(assets.values()), dependencies
 
@@ -1093,6 +1241,8 @@ def infer_source_system(document: TextDocument) -> str:
         return "azure_synapse"
     if document.extension == ".sql":
         return "legacy_sql"
+    if document.extension == ".xlsx":
+        return "lakebridge_analyzer"
     return "legacy"
 
 
@@ -1144,9 +1294,27 @@ def build_risk_register(
             score += 10
             factors.append("large data volume")
 
-        if asset["asset_type"] in {"adf_pipeline", "sql_script", "synapse_notebook", "sqlserver_stored_procedure"}:
+        if asset["asset_type"] in {
+            "adf_pipeline",
+            "lakebridge_sql_program",
+            "sql_script",
+            "synapse_notebook",
+            "sqlserver_stored_procedure",
+        }:
             score += 10
             factors.append("requires orchestration or code migration")
+        if asset["asset_type"] == "lakebridge_sql_program":
+            try:
+                metadata = json.loads(asset.get("metadata_json") or "{}")
+            except json.JSONDecodeError:
+                metadata = {}
+            complexity = str(metadata.get("complexity") or "").strip().lower()
+            if complexity in {"very_high", "very high", "high"}:
+                score += 15
+                factors.append("Lakebridge high complexity")
+            elif complexity == "medium":
+                score += 5
+                factors.append("Lakebridge medium complexity")
         if asset["asset_type"] in {"adf_linked_service", "adf_dataset"}:
             score += 10
             factors.append("connection and dataset mapping required")
@@ -1197,6 +1365,7 @@ def build_blueprint(
             "sqlserver_table",
             "sqlserver_view",
             "sql_referenced_object",
+            "lakebridge_referenced_object",
         }:
             target_pattern = "Unity Catalog Delta table"
             target_schema = "silver"
@@ -1271,6 +1440,13 @@ def build_blueprint(
                 "Refactor platform-specific T-SQL functions.",
                 "Validate dependencies against Unity Catalog objects.",
             ]
+        elif asset_type == "lakebridge_sql_program":
+            target_pattern = "Databricks SQL or PySpark transformation"
+            target_schema = "workflows"
+            notes = [
+                "Use Lakebridge complexity and object references to plan rewrite effort.",
+                "Run Lakebridge transpile for candidates, then review generated Databricks SQL manually.",
+            ]
         elif asset_type == "sqlserver_stored_procedure":
             target_pattern = "Databricks SQL, PySpark transformation or Lakeflow task"
             target_schema = "workflows"
@@ -1317,11 +1493,27 @@ def build_data_quality_plan(
             "sqlserver_table",
             "sqlserver_view",
             "sql_referenced_object",
+            "lakebridge_referenced_object",
         }:
             checks = [
                 ("row_count_reconciliation", "completeness", "error", "Compare source and Delta row counts."),
                 ("schema_compatibility", "schema", "error", "Validate column names and compatible data types."),
                 ("nullability_profile", "quality", "warning", "Profile null rates for business columns."),
+            ]
+        elif asset["asset_type"] == "lakebridge_sql_program":
+            checks = [
+                (
+                    "lakebridge_complexity_review",
+                    "code",
+                    "error",
+                    "Review Lakebridge complexity, functions and object references before conversion.",
+                ),
+                (
+                    "transpile_output_review",
+                    "code",
+                    "warning",
+                    "If Lakebridge transpile is used, validate generated Databricks SQL before execution.",
+                ),
             ]
         elif asset["asset_type"] == "synapse_serverless_database":
             checks = [

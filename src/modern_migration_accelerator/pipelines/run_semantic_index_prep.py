@@ -10,8 +10,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from modern_migration_accelerator.xlsx import xlsx_bytes_to_text
+
 SCRIPT_PATH = globals().get("__file__") or globals().get("filename") or sys.argv[0]
-SUPPORTED_EXTENSIONS = {".csv", ".ipynb", ".json", ".sql"}
+SUPPORTED_EXTENSIONS = {".csv", ".ipynb", ".json", ".sql", ".xlsx"}
 SPARK_FILE_PREFIXES = ("dbfs:/", "/Volumes/", "abfss://", "wasbs://", "s3://", "gs://")
 SENSITIVE_KEY_TERMS = ("password", "secret", "token", "key", "connectionstring", "sas")
 PLAIN_SECRET_PATTERN = re.compile(
@@ -162,11 +164,16 @@ def load_text_documents(source_root: str, spark=None) -> list[TextDocument]:
         documents: list[TextDocument] = []
         for file_path in sorted(root.rglob("*")):
             if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
+                extension = file_path.suffix.lower()
+                if extension == ".xlsx":
+                    content = xlsx_bytes_to_text(file_path.read_bytes())
+                else:
+                    content = file_path.read_text(encoding="utf-8")
                 documents.append(
                     TextDocument(
                         path=str(file_path),
-                        content=file_path.read_text(encoding="utf-8"),
-                        extension=file_path.suffix.lower(),
+                        content=content,
+                        extension=extension,
                     )
                 )
         return documents
@@ -190,10 +197,12 @@ def _load_text_documents_with_spark(source_root: str, spark) -> list[TextDocumen
         extension = Path(row["path"]).suffix.lower()
         if extension not in SUPPORTED_EXTENSIONS:
             continue
+        content = bytes(row["content"])
+        text = xlsx_bytes_to_text(content) if extension == ".xlsx" else content.decode("utf-8")
         documents.append(
             TextDocument(
                 path=row["path"],
-                content=bytes(row["content"]).decode("utf-8"),
+                content=text,
                 extension=extension,
             )
         )

@@ -49,6 +49,7 @@ Use this checklist before the first real customer metadata run.
 - External table DDL or inventory exported.
 - Synapse notebooks exported.
 - SQL scripts, procedures and views exported.
+- Optional Lakebridge Analyzer `.xlsx` report exported.
 - SQL Server inventory exported from read-only metadata queries, if applicable.
 
 ## Security

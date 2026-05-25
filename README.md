@@ -23,7 +23,7 @@ It helps the migration execution team, but it is not a data movement engine, aut
 
 1. Configure the repo once for a Databricks Full Trial or full workspace.
 2. Run with the included sample estate copied to a Unity Catalog volume to prove the platform path.
-3. Point `LEGACY_METADATA_SOURCE_ROOT` to customer exports from ADF, Synapse, SQL Server, notebooks, SQL scripts and documentation.
+3. Point `LEGACY_METADATA_SOURCE_ROOT` to customer exports from ADF, Synapse, SQL Server, notebooks, SQL scripts, Lakebridge reports and documentation.
 4. Run the bundle again to produce Delta outputs for assessment, graph exploration and migration planning.
 5. Publish the graph to Neo4j and prepare semantic chunks for Databricks Vector Search when the first Delta outputs are trusted.
 
@@ -38,7 +38,7 @@ Change only these inputs when moving from demo to a real customer estate:
 | Databricks workspace | `DATABRICKS_PROFILE=mma-fulltrial` | Customer CLI profile or approved service principal. |
 | Target catalog | `migration_accelerator_dev` | Customer Unity Catalog catalog. |
 | Metadata landing | `/Volumes/<catalog>/landing/legacy_metadata/demo` | `/Volumes/<catalog>/landing/legacy_metadata/` or an approved external volume. |
-| ADF and Synapse artifacts | `samples/legacy_metadata/` | Exported `.json`, `.csv`, `.sql` and `.ipynb` files under the landing folders. |
+| ADF and Synapse artifacts | `samples/legacy_metadata/` | Exported `.json`, `.csv`, `.sql`, `.ipynb` and optional Lakebridge `.xlsx` files under the landing folders. |
 | SQL Server | Docker fixture plus `local_outputs/legacy_metadata/sqlserver_inventory.csv` | Read-only metadata export saved under `sqlserver/inventory/`, or approved federation/connector access. |
 | Neo4j | Local `.env` AuraDB values | Customer AuraDB or Neo4j endpoint and secret strategy. |
 
@@ -47,6 +47,7 @@ Recommended customer landing folders:
 ```text
 /Volumes/<catalog>/landing/legacy_metadata/adf/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/inventory/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/lakebridge/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/notebooks/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/sql/
 /Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
@@ -328,7 +329,7 @@ For customer metadata, upload files to a Unity Catalog volume and set:
 LEGACY_METADATA_SOURCE_ROOT=/Volumes/migration_accelerator_dev/landing/legacy_metadata
 ```
 
-Supported file types are `.json` for ADF-like exports, `.csv` for Synapse or SQL Server inventory extracts, `.ipynb` for notebooks and `.sql` for SQL scripts.
+Supported file types are `.json` for ADF-like exports, `.csv` for Synapse or SQL Server inventory extracts, `.ipynb` for notebooks, `.sql` for SQL scripts and `.xlsx` for Databricks Lakebridge Analyzer reports.
 
 ## Neo4j timing
 
