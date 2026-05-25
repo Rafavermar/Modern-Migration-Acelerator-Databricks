@@ -454,6 +454,12 @@ Cause: serverless task startup can hit transient Workspace Files reads.
 
 Fix: the jobs execute runtime Python scripts from the Unity Catalog volume instead of `/Workspace/.../.bundle/.../files`.
 
+Issue: `ModuleNotFoundError: No module named 'modern_migration_accelerator'` from a Databricks serverless job.
+
+Cause: runtime scripts are executed from the Unity Catalog volume as standalone job entrypoints. They should not require the local editable Python package to be installed in the Databricks serverless environment.
+
+Fix: the serverless job entrypoints include the small XLSX helper logic they need at runtime, so the accelerator and semantic prep jobs remain self-contained. Shared package modules are still used by local tools and tests.
+
 Issue: `databricks vector-search-indexes query-index` returns an unmarshalling error even when the REST API returns `200 OK`.
 
 Cause: CLI wrapper issue in the current Databricks CLI build.
