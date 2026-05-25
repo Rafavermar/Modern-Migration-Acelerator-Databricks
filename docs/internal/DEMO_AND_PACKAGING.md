@@ -89,6 +89,18 @@ Save screenshots under `docs/assets/`. Use short lowercase names.
 
 After screenshots are added, link only the most useful ones in README and architecture docs. Do not overload the docs with every capture.
 
+## Screenshot Privacy Gate
+
+Do not commit public screenshots that expose:
+
+- personal email addresses;
+- customer names;
+- workspace URLs or organization IDs;
+- tokens, passwords or secret names;
+- private hostnames, tenant IDs or billing details.
+
+Use raw screenshots for local study and internal rehearsal only. For public docs, product pages or releases, create a sanitized screenshot set with redacted workspace identity and customer-specific values. Keep the public repo useful without leaking delivery-environment details.
+
 ## Manual Demo Flow
 
 Use one clean terminal and one browser profile.
