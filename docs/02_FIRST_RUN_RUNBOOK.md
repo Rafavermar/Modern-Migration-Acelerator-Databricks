@@ -309,7 +309,7 @@ Credit guardrails for Foundation Models:
 - `-GenerateAnswer` consumes Databricks trial credits because it calls a hosted chat model.
 - Use retrieval-only mode while tuning metadata, Vector Search and screenshots that do not require generated text.
 - Use generated-answer mode for final validation, demo capture and targeted examples.
-- Keep dev defaults unless needed: `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=700`, `RAG_LLM_TEMPERATURE=0.0`.
+- Keep dev defaults unless needed: `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=1200`, `RAG_LLM_TEMPERATURE=0.0`.
 - Monitor `Manage Trial` and workspace usage if running many questions.
 
 Starter RAG evaluation:

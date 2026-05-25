@@ -305,7 +305,7 @@ Foundation Model usage:
 - `-GenerateAnswer` calls the Databricks Foundation Model API through the configured chat endpoint.
 - Dev default: `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`.
 - The script sends only the user question and the retrieved evidence chunks, not the full source estate.
-- Defaults are intentionally small: `RAG_LLM_MAX_TOKENS=700` and `RAG_LLM_TEMPERATURE=0.0`.
+- Defaults are demo-friendly but controlled: `RAG_LLM_MAX_TOKENS=1200` and `RAG_LLM_TEMPERATURE=0.0`.
 - Foundation Model calls consume workspace credits. Use them for final validation, screenshots and demos; use retrieval-only mode while tuning metadata and index quality.
 - Watch Databricks `Manage Trial` and billing/usage pages during repeated tests. Do not run loops over many questions until an evaluation budget is agreed.
 

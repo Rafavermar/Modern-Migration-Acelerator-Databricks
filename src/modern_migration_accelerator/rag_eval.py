@@ -228,7 +228,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--profile", default="")
     parser.add_argument("--generate-answer", action="store_true")
     parser.add_argument("--llm-endpoint", default="")
-    parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("RAG_LLM_MAX_TOKENS", "700")))
+    parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("RAG_LLM_MAX_TOKENS", "1200")))
     parser.add_argument("--temperature", type=float, default=float(os.environ.get("RAG_LLM_TEMPERATURE", "0.0")))
     parser.add_argument("--log-mlflow", action="store_true")
     parser.add_argument("--fail-on-miss", action="store_true")

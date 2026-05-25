@@ -481,7 +481,7 @@ Default dev LLM endpoint:
 
 This calls a Databricks Foundation Model API chat endpoint, writes `local_outputs/rag/latest_llm_answer.md` and logs the generation artifacts to MLflow when `-LogMlflow` is used.
 
-Foundation Model calls consume Databricks trial credits. Use retrieval-only mode while tuning metadata and index quality; use `-GenerateAnswer` for final checks, screenshots and demos. Dev defaults are intentionally small: `databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=700`, `RAG_LLM_TEMPERATURE=0.0`.
+Foundation Model calls consume Databricks trial credits. Use retrieval-only mode while tuning metadata and index quality; use `-GenerateAnswer` for final checks, screenshots and demos. Dev defaults are demo-friendly but controlled: `databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=1200`, `RAG_LLM_TEMPERATURE=0.0`.
 
 Run the starter RAG evaluation set:
 

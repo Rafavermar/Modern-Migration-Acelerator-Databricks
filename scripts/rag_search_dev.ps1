@@ -3,7 +3,7 @@ param(
     [int]$NumResults = 5,
     [switch]$GenerateAnswer,
     [string]$LlmEndpoint = "",
-    [int]$MaxTokens = 700,
+    [int]$MaxTokens = 1200,
     [double]$Temperature = 0.0,
     [switch]$LogMlflow
 )

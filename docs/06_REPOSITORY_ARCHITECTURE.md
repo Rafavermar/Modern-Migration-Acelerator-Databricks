@@ -134,7 +134,7 @@ Credit guardrails:
 - Vector Search creation, index sync and Foundation Model calls consume Databricks trial credits.
 - Retrieval-only RAG is cheaper than generated-answer mode because it does not call a chat model.
 - Use `-GenerateAnswer` for final validation, screenshots and demos; avoid loops over many questions until a usage budget exists.
-- Keep `RAG_LLM_MAX_TOKENS` small for dev. Default is `700`.
+- Keep `RAG_LLM_MAX_TOKENS` controlled for dev. Default is `1200`.
 
 ## Bundle Structure
 

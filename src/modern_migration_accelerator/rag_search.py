@@ -624,7 +624,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-dir", default=os.environ.get("RAG_OUTPUT_DIR", "local_outputs/rag"))
     parser.add_argument("--generate-answer", action="store_true")
     parser.add_argument("--llm-endpoint", default="")
-    parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("RAG_LLM_MAX_TOKENS", "700")))
+    parser.add_argument("--max-tokens", type=int, default=int(os.environ.get("RAG_LLM_MAX_TOKENS", "1200")))
     parser.add_argument("--temperature", type=float, default=float(os.environ.get("RAG_LLM_TEMPERATURE", "0.0")))
     parser.add_argument("--log-mlflow", action="store_true")
     return parser.parse_args(argv)
