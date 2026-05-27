@@ -65,6 +65,27 @@ class RagSearchTests(unittest.TestCase):
         self.assertIn("gold.risk_register", brief)
         self.assertIn("grounded search brief", brief)
 
+    def test_build_retrieval_brief_labels_unmapped_evidence_context(self) -> None:
+        rows = [
+            {
+                "chunk_id": "chunk_1",
+                "document_type": "data_quality_plan",
+                "asset_name": "orders/raw/orders_2025_03.parquet",
+                "risk_level": "",
+                "review_priority": "",
+                "target_pattern": "",
+                "source_path": "gold.data_quality_plan",
+                "chunk_text": "Ownership classification must be confirmed.",
+            }
+        ]
+
+        brief = build_retrieval_brief("Which order assets need review?", rows)
+
+        self.assertIn("not_classified", brief)
+        self.assertIn("not_prioritized", brief)
+        self.assertIn("not_mapped", brief)
+        self.assertNotIn("risk: `unknown`", brief)
+
     def test_default_mlflow_tracking_uri_uses_databricks_profile(self) -> None:
         self.assertEqual(default_mlflow_tracking_uri("mma-fulltrial"), "databricks://mma-fulltrial")
 

@@ -234,6 +234,15 @@ def display_value(row: dict[str, Any], name: str, fallback: str = "unknown") -> 
     return str(value)
 
 
+def evidence_context_value(row: dict[str, Any], name: str) -> str:
+    fallbacks = {
+        "risk_level": "not_classified",
+        "review_priority": "not_prioritized",
+        "target_pattern": "not_mapped",
+    }
+    return display_value(row, name, fallbacks.get(name, "not_available"))
+
+
 def inline_code(value: str) -> str:
     return f"`{value.replace('`', '')}`"
 
@@ -247,9 +256,9 @@ def evidence_block(rows: list[dict[str, Any]], max_rows: int = 5, max_chars: int
                     f"Evidence {index}",
                     f"asset_name: {display_value(row, 'asset_name')}",
                     f"document_type: {display_value(row, 'document_type')}",
-                    f"risk_level: {display_value(row, 'risk_level')}",
-                    f"review_priority: {display_value(row, 'review_priority')}",
-                    f"target_pattern: {display_value(row, 'target_pattern')}",
+                    f"risk_level: {evidence_context_value(row, 'risk_level')}",
+                    f"review_priority: {evidence_context_value(row, 'review_priority')}",
+                    f"target_pattern: {evidence_context_value(row, 'target_pattern')}",
                     f"source_path: {display_value(row, 'source_path')}",
                     f"chunk_text: {compact_text(row.get('chunk_text'), max_chars=max_chars)}",
                 ]
@@ -362,9 +371,9 @@ def build_retrieval_brief(question: str, rows: list[dict[str, Any]]) -> str:
     for index, row in enumerate(rows, start=1):
         asset = display_value(row, "asset_name")
         document_type = display_value(row, "document_type")
-        risk = display_value(row, "risk_level")
-        priority = display_value(row, "review_priority")
-        target = display_value(row, "target_pattern")
+        risk = evidence_context_value(row, "risk_level")
+        priority = evidence_context_value(row, "review_priority")
+        target = evidence_context_value(row, "target_pattern")
         source = display_value(row, "source_path")
         chunk = compact_text(row.get("chunk_text"))
         lines.extend(

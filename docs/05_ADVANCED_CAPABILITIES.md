@@ -129,6 +129,8 @@ Base retrieval mode does not sort the whole estate by risk and does not call an 
 
 Evidence metadata is asset-level context. A returned chunk may come from a DQ plan, graph edge or raw artifact, but if it has an `asset_id`, semantic prep enriches it with risk, priority and target pattern from `gold.asset_priority_matrix`. Portfolio summary chunks use portfolio-level labels and must be interpreted as summary evidence, not individual migration actions.
 
+If a returned evidence row shows `not_classified`, `not_prioritized` or `not_mapped`, the evidence is still valid, but that specific chunk was not linked to the master risk, priority or blueprint context. This often happens with physical file paths, portfolio summaries or supporting artifacts. Confirm the final decision in the gold tables.
+
 What `-GenerateAnswer` adds:
 
 1. Builds a grounded prompt from the same retrieved evidence.
