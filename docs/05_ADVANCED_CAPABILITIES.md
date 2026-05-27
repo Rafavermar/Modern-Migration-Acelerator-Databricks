@@ -127,6 +127,8 @@ What the RAG/search command does:
 
 Base retrieval mode does not sort the whole estate by risk and does not call an LLM. It retrieves relevant evidence for the question. If returned chunks contain `p1` or high-risk assets, the brief highlights them first.
 
+Evidence metadata is asset-level context. A returned chunk may come from a DQ plan, graph edge or raw artifact, but if it has an `asset_id`, semantic prep enriches it with risk, priority and target pattern from `gold.asset_priority_matrix`. Portfolio summary chunks use portfolio-level labels and must be interpreted as summary evidence, not individual migration actions.
+
 What `-GenerateAnswer` adds:
 
 1. Builds a grounded prompt from the same retrieved evidence.

@@ -13,6 +13,7 @@ if str(SRC) not in sys.path:
 from modern_migration_accelerator.pipelines.run_semantic_index_prep import (
     TextDocument,
     build_source_document_chunks,
+    enrich_chunk_rows,
     sanitize_document_content,
     split_text_chunks,
 )
@@ -85,6 +86,47 @@ class SemanticIndexPrepTests(unittest.TestCase):
         self.assertEqual(rows[0]["document_type"], "legacy_artifact")
         self.assertEqual(rows[0]["source_format"], "json")
         self.assertTrue(rows[0]["chunk_text"])
+
+    def test_enriches_chunk_rows_with_asset_semantic_context(self) -> None:
+        rows = [
+            {
+                "chunk_id": "chunk_1",
+                "run_id": "run_1",
+                "document_type": "data_quality_plan",
+                "source_path": "delta:gold.data_quality_plan#asset_1#ownership",
+                "source_format": "delta",
+                "asset_id": "asset_1",
+                "asset_name": "orders_raw",
+                "asset_type": "",
+                "source_system": "",
+                "target_pattern": "",
+                "risk_level": "",
+                "review_priority": "",
+                "chunk_index": 0,
+                "chunk_text": "Data quality check for orders_raw.",
+                "content_hash": "abc",
+                "generated_at": "2026-05-23T00:00:00+00:00",
+            }
+        ]
+        context = {
+            "asset_1": {
+                "asset_id": "asset_1",
+                "asset_name": "orders_raw",
+                "asset_type": "adf_dataset",
+                "source_system": "azure_data_factory",
+                "risk_level": "medium",
+                "review_priority": "p2",
+                "target_pattern": "Unity Catalog Delta table",
+            }
+        }
+
+        enriched = enrich_chunk_rows(rows, context)
+
+        self.assertEqual(enriched[0]["risk_level"], "medium")
+        self.assertEqual(enriched[0]["review_priority"], "p2")
+        self.assertEqual(enriched[0]["target_pattern"], "Unity Catalog Delta table")
+        self.assertEqual(enriched[0]["source_system"], "azure_data_factory")
+        self.assertEqual(enriched[0]["asset_type"], "adf_dataset")
 
     def test_splits_large_text_with_overlap(self) -> None:
         chunks = split_text_chunks("word " * 2000, max_chars=500, overlap_chars=50)
