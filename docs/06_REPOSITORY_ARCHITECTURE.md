@@ -12,7 +12,7 @@ The execution team uses the outputs to decide and implement the actual migration
 
 ## Architecture Layers
 
-![Modern Migration Accelerator architecture layers](assets/architecture_layers.png)
+![Modern Migration Accelerator architecture layers](assets/modern_migration_accelerator_architecture_layers.png)
 
 The image is the quick visual map. The Mermaid version below is the editable source view for the same layers.
 
