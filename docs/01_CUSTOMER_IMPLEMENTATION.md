@@ -6,6 +6,21 @@ The customer does not copy this repository into every legacy system. The impleme
 
 The customer does not need an existing metadata framework. The repo provides the metadata framework by normalizing raw exports into a common asset, dependency, risk and blueprint model.
 
+## What the customer gets
+
+The first customer outcome is a Databricks-native migration assessment, not a completed production migration.
+
+The accelerator produces:
+
+- what legacy assets exist;
+- how they depend on each other;
+- which assets are high risk or first-wave candidates;
+- which Databricks target pattern is recommended;
+- which validation checks should be planned;
+- where architects can inspect the graph, search evidence and trace generated answers.
+
+The customer uses those outputs to execute migration work through approved Databricks engineering patterns.
+
 ## Product operating model
 
 1. Deploy the accelerator bundle to a customer Databricks workspace with serverless jobs.
@@ -15,10 +30,11 @@ The customer does not need an existing metadata framework. The repo provides the
 5. Review the generated summary, priority matrix, dependency graph, risk register, target blueprint and data quality plan.
 6. Publish graph outputs to Neo4j for visual impact analysis.
 7. Index artifacts with Databricks Vector Search for semantic discovery.
-8. Use MLflow when generated recommendations, RAG or assistant workflows are introduced.
-9. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
+8. Use the RAG/search utility to ask migration questions over the indexed corpus.
+9. Use MLflow when generated recommendations or assistant workflows are introduced.
+10. Choose the migration execution pattern per source: managed Delta ingestion, external table registration, Lakehouse Federation, or source-specific connectors.
 
-The first delivery focuses on steps 1 to 5. Steps 6 to 9 are activated after the first Databricks outputs are trusted and credentials are approved.
+The first Databricks run proves the assessment backbone. Graph, search and RAG/search run from the same outputs once credentials and security approval are in place.
 
 Before positioning the accelerator, review `docs/00_PRODUCT_POSITIONING.md`. It defines where this product fits, when existing tools are better and how to decide between federation, ingestion, external tables and volumes.
 
@@ -35,7 +51,7 @@ For Neo4j, Vector Search, RAG, MLflow and Model Serving planning, use `docs/05_A
 | ADF/Synapse/notebooks/SQL | Metadata landing folders | Drop exported files into the expected folders. |
 | SQL Server | Export CSV/JSON or approved direct access | Start with export-only discovery unless network and secrets are already approved. |
 | Neo4j | `.env` locally, secrets for enterprise | Publish the graph after the Databricks Delta outputs are trusted. |
-| Vector Search and MLflow | Advanced phase config | Add after artifact outputs, graph model and security review are stable. |
+| Vector Search, RAG and MLflow | `.env`, Databricks resources and MLflow experiment | Use after `gold.semantic_legacy_documents` exists and indexing is approved. |
 
 ## Metadata landing contract
 
@@ -58,11 +74,29 @@ Recommended folders:
 ```text
 /Volumes/<catalog>/landing/legacy_metadata/adf/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/inventory/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/lakebridge/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/notebooks/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/sql/
 /Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
 /Volumes/<catalog>/landing/legacy_metadata/docs/
 ```
+
+Artifact intake matrix:
+
+| Customer artifact | Put it under | Format | Normalized as | Why it matters |
+| --- | --- | --- | --- | --- |
+| ADF pipelines, activities | `adf/` | `.json` | `adf_pipeline`, `adf_activity` | Orchestration, dependencies and code-migration effort. |
+| ADF datasets | `adf/` | `.json` | `adf_dataset`, data objects, storage paths | Source/target object mapping and ownership checks. |
+| ADF linked services | `adf/` | `.json` | `adf_linked_service` | Secret, connection and network migration work. |
+| ADF triggers | `adf/` | `.json` | `adf_trigger` | Schedule mapping to Databricks jobs. |
+| Synapse inventory | `synapse/inventory/` | `.csv` | `synapse_table`, `synapse_view`, database assets | Table estate, row counts, owners and criticality. |
+| Synapse external table DDL | `synapse/sql/` | `.sql` | `synapse_external_table`, storage references | External location, volume and security mapping. |
+| Synapse notebooks | `synapse/notebooks/` | `.ipynb` | `synapse_notebook`, notebook references | Code rewrite effort and referenced objects. |
+| SQL scripts, views, procedures | `synapse/sql/` or `sqlserver/inventory/` | `.sql`, `.csv` | `sql_script`, SQL Server assets, references | Transformation rewrite and dependency evidence. |
+| Lakebridge Analyzer report | `synapse/lakebridge/` | `.xlsx` | `lakebridge_sql_program`, referenced objects | Official SQL complexity and object cross-reference evidence. |
+| Architecture/docs/runbooks | `docs/` | `.md`, `.txt`, `.json`, `.sql` | semantic documents | Search/RAG context, not primary scoring unless parsed as assets. |
+
+The accelerator searches recursively, so exact subfolders are a convention, not a hard parser dependency. Keep the convention because it makes onboarding, screenshots and customer review simpler.
 
 The baseline CSV shape is defined in:
 
@@ -83,6 +117,7 @@ The current parser supports these file families:
 - Synapse or SQL Server inventory extracts as `.csv`.
 - Synapse notebooks as `.ipynb`.
 - SQL scripts, views, procedures and external table DDL as `.sql`.
+- Databricks Lakebridge Analyzer reports as `.xlsx`.
 
 Source-specific extractors can become richer over time, but the product boundary remains the same: the accelerator consumes metadata exports from a landing area and writes Delta outputs.
 
@@ -130,12 +165,68 @@ Interpretation flow:
 
 Neo4j makes graph exploration visual. Vector Search makes discovery semantic. Both build on these Delta outputs.
 
+Priority and risk interpretation:
+
+- `p1` means review first. It does not mean "migrate automatically".
+- `risk_score` increases with criticality, dependency count, large row counts, code/orchestration migration, external table mapping and connection/security work.
+- `risk_level` explains the review posture: high, medium or low.
+- `target_pattern` is the recommended Databricks implementation direction, not generated production code.
+- `data_quality_plan` is the validation backlog the delivery team should execute during migration.
+
+Customers improve scoring quality by providing `criticality`, `owner`, `row_count`, `depends_on`, storage locations, module definitions and Lakebridge complexity evidence where available.
+
+## How migration execution starts
+
+After the assessment is reviewed, migration execution starts from the gold outputs:
+
+| Question | Output to use | Execution decision |
+| --- | --- | --- |
+| What moves first? | `gold.asset_priority_matrix` | Select wave 1 assets and review backlog. |
+| What could break? | `gold.graph_edges`, Neo4j | Check upstream/downstream dependencies before implementation. |
+| What should the target be? | `gold.target_databricks_blueprint` | Choose Delta table, external table, volume, federation or connector pattern. |
+| What must be validated? | `gold.data_quality_plan` | Define pre/post migration checks and ownership. |
+| What is risky? | `gold.risk_register` | Decide mitigation, sequencing and manual review. |
+
+Then the delivery team implements the chosen pattern:
+
+- managed Delta ingestion for Databricks-owned analytical tables;
+- external tables or volumes for data already in governed cloud storage;
+- Lakehouse Federation for live access, validation or phased coexistence;
+- Lakeflow or connector-based ingestion for repeatable source-to-Delta movement;
+- Databricks jobs, notebooks or workflows for transformed logic.
+
+The accelerator can be re-run after new exports or implementation changes to refresh priorities and validate that the plan still matches the estate.
+
+## Lakebridge fit
+
+Lakebridge complements this accelerator. Use Lakebridge Analyzer when the customer has many Synapse or SQL Server SQL scripts and wants official Databricks complexity scoring, function inventory and object cross-references.
+
+Put the Analyzer `.xlsx` report in:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/synapse/lakebridge/
+```
+
+The accelerator reads that report, creates `lakebridge_sql_program` and `lakebridge_referenced_object` assets, adds read/write dependencies and uses Lakebridge complexity as risk evidence. Lakebridge transpile or reconcile remain separate execution/validation tools; their outputs should be reviewed before production use.
+
 To publish the graph after the first trusted run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
 ```
+
+To activate semantic search after `gold.semantic_legacy_documents` exists:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\create_vector_search_dev.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which assets should be migrated first?"
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which assets should be migrated first?"
+```
+
+The dev index uses `chunk_id` as primary key, `chunk_text` as the embedding source, `databricks-qwen3-embedding-0-6b` as the embedding endpoint and `TRIGGERED` sync mode.
+
+For managed embeddings, Databricks uses the same configured embedding endpoint for indexed text and `query_text`. If a customer later provides their own vectors, they must keep the same model, dimensions and preprocessing for both indexing and querying.
 
 ## What the customer provides
 
@@ -152,6 +243,7 @@ For Synapse:
 - External table DDL or metadata extract.
 - Notebook exports.
 - SQL scripts, views, stored procedures and dependency extracts.
+- Optional Lakebridge Analyzer `.xlsx` report for SQL complexity, functions and referenced objects.
 
 For SQL Server:
 
@@ -168,6 +260,13 @@ For the data lake:
 - File formats and partition conventions.
 - External table locations already used by Synapse serverless.
 - Security model and ownership boundaries.
+
+For extractor improvements:
+
+- Representative redacted artifacts for each source pattern.
+- Expected lineage/dependency outcomes for those artifacts.
+- Known dynamic patterns that static parsing might miss.
+- Any existing catalog, lineage or dependency exports.
 
 ## SQL Server in this repository
 
@@ -198,6 +297,90 @@ For a real SQL Server estate, use one of three patterns:
 Use export-only discovery first unless the customer already has approved network connectivity and secret handling. It is the lowest-friction and lowest-risk onboarding path.
 
 The local Docker fixture is optional. A customer does not need Docker if they can provide SQL Server metadata exports.
+
+### Where SQL Server goes
+
+The accelerator does not decide that every SQL Server database must move to Databricks.
+
+- Keep operational OLTP databases in SQL Server, Azure SQL or SQL Managed Instance when applications still write to them.
+- Move analytical marts, reporting tables, batch ETL outputs and BI-facing SQL logic to Unity Catalog Delta tables, Databricks SQL, Lakeflow jobs or notebooks.
+- Use Lakehouse Federation for live read access, validation, coexistence or phased migration. Federation is access, not decommissioning.
+- Use connector-based ingestion when Databricks must own curated Delta copies.
+- Decommission SQL Server objects only after owners approve cutover and reconciliation checks pass.
+
+### Pattern 1: Export-only discovery
+
+Use when the customer wants the fastest and least invasive assessment.
+
+Technical flow:
+
+1. DBA reviews `samples/sqlserver/extract/metadata_inventory.sql`.
+2. DBA runs the query with read-only catalog permissions.
+3. Output is saved as CSV using the contract in `contracts/legacy_metadata_inventory.csv`.
+4. File is uploaded to:
+
+```text
+/Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
+```
+
+5. Set `LEGACY_METADATA_SOURCE_ROOT=/Volumes/<catalog>/landing/legacy_metadata`.
+6. Run the accelerator normally.
+
+This pattern does not require network connectivity from Databricks to SQL Server.
+
+### Pattern 2: Lakehouse Federation
+
+Use when Databricks must query SQL Server live for validation, reconciliation or read-only discovery.
+
+Prerequisites:
+
+- Unity Catalog enabled.
+- User has `CREATE CONNECTION` privilege or metastore admin support.
+- Network route from Databricks to SQL Server is approved.
+- Authentication mode is approved: basic auth, OAuth or OAuth machine-to-machine.
+- Credentials are stored in Databricks secrets or a customer-approved secret manager.
+
+UI path:
+
+1. Open `Catalog`.
+2. Click the add icon at the top of the Catalog pane.
+3. Select `Create a connection`.
+4. Choose connection type `SQL Server`.
+5. Create a foreign catalog that mirrors the SQL Server database.
+
+SQL shape:
+
+```sql
+CREATE CONNECTION mma_sqlserver_connection
+TYPE SQLSERVER
+OPTIONS (
+  host '<sql-server-host>',
+  port '1433',
+  user secret('<scope>', '<user-key>'),
+  password secret('<scope>', '<password-key>')
+);
+
+CREATE FOREIGN CATALOG legacy_sqlserver
+USING CONNECTION mma_sqlserver_connection
+OPTIONS (database '<database-name>');
+```
+
+After the foreign catalog exists, the accelerator can use metadata exported from that catalog, or a customer-specific extractor can query `legacy_sqlserver.<schema>.<table>` for validation.
+
+Do not use federation as the first choice if the only need is static migration assessment and the customer can provide exports.
+
+### Pattern 3: Connector-based ingestion
+
+Use when the migration plan requires Databricks-owned Delta copies of source tables.
+
+Technical flow:
+
+1. Use the accelerator outputs to decide which SQL Server tables need ingestion.
+2. Configure customer-approved ingestion, such as Lakeflow Connect or another approved connector pattern.
+3. Store raw or bronze ingested data in managed Delta tables.
+4. Keep the accelerator metadata landing separate from production data ingestion.
+
+This is migration execution, not just assessment. It should follow customer data movement, retention and cost policies.
 
 ## Data lake and Synapse external tables
 
@@ -280,3 +463,9 @@ Before real source connectivity:
 - Secrets strategy agreed.
 - Network path from Databricks to source approved, if direct connectivity is required.
 - Decision made per source: export-only discovery, federation, connector-based ingestion or custom extraction.
+
+## Official References
+
+- Databricks SQL Server Lakehouse Federation: https://docs.databricks.com/aws/en/query-federation/sql-server
+- Databricks connections: https://docs.databricks.com/aws/en/query-federation/connections
+- `CREATE CONNECTION`: https://docs.databricks.com/aws/en/sql/language-manual/sql-ref-syntax-ddl-create-connection

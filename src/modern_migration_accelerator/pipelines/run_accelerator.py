@@ -7,15 +7,21 @@ import io
 import json
 import re
 import sys
+import zipfile
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 from typing import Any
+import xml.etree.ElementTree as ET
 
 SCRIPT_PATH = globals().get("__file__") or globals().get("filename") or sys.argv[0]
-SUPPORTED_EXTENSIONS = {".csv", ".ipynb", ".json", ".sql"}
+SUPPORTED_EXTENSIONS = {".csv", ".ipynb", ".json", ".sql", ".xlsx"}
 SPARK_FILE_PREFIXES = ("dbfs:/", "/Volumes/", "abfss://", "wasbs://", "s3://", "gs://")
+MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+XLSX_NS = {"m": MAIN_NS, "r": REL_NS}
 REFERENCE_PATTERN = re.compile(
     r"""
     \b(
@@ -40,6 +46,153 @@ class TextDocument:
     extension: str
 
 
+@dataclass(frozen=True)
+class XlsxSheet:
+    name: str
+    rows: list[list[str]]
+
+
+def xlsx_bytes_to_sheets(content: bytes) -> list[XlsxSheet]:
+    """Read basic worksheet text from an .xlsx file without external dependencies."""
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        shared_strings = _read_shared_strings(archive)
+        workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+        relationships = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+        relationship_targets = {
+            rel.attrib["Id"]: rel.attrib["Target"]
+            for rel in relationships
+            if rel.attrib.get("Type", "").endswith("/worksheet")
+        }
+
+        sheets: list[XlsxSheet] = []
+        for sheet in workbook.findall("m:sheets/m:sheet", XLSX_NS):
+            sheet_name = sheet.attrib.get("name", "Sheet")
+            relationship_id = sheet.attrib.get(f"{{{REL_NS}}}id")
+            if not relationship_id or relationship_id not in relationship_targets:
+                continue
+            worksheet_path = _workbook_target_to_archive_path(relationship_targets[relationship_id])
+            worksheet = ET.fromstring(archive.read(worksheet_path))
+            rows = _read_rows(worksheet, shared_strings)
+            sheets.append(XlsxSheet(name=sheet_name, rows=rows))
+        return sheets
+
+
+def xlsx_bytes_to_text(content: bytes) -> str:
+    parts: list[str] = []
+    for sheet in xlsx_bytes_to_sheets(content):
+        parts.append(f"## Sheet: {sheet.name}")
+        for row in sheet.rows:
+            parts.append("\t".join(_clean_cell(cell) for cell in row))
+        parts.append("")
+    return "\n".join(parts).strip()
+
+
+def parse_xlsx_text_sheets(content: str) -> dict[str, list[list[str]]]:
+    sheets: dict[str, list[list[str]]] = {}
+    current_sheet: str | None = None
+
+    for line in content.splitlines():
+        if line.startswith("## Sheet: "):
+            current_sheet = line.removeprefix("## Sheet: ").strip()
+            sheets[current_sheet] = []
+            continue
+        if current_sheet is None or not line.strip():
+            continue
+        sheets[current_sheet].append(line.split("\t"))
+
+    return sheets
+
+
+def rows_as_dicts(rows: list[list[str]]) -> list[dict[str, str]]:
+    if not rows:
+        return []
+
+    headers = [_normalize_header(value) for value in rows[0]]
+    output: list[dict[str, str]] = []
+    for row in rows[1:]:
+        item = {}
+        for index, header in enumerate(headers):
+            if not header:
+                continue
+            item[header] = row[index].strip() if index < len(row) else ""
+        if any(value for value in item.values()):
+            output.append(item)
+    return output
+
+
+def _read_shared_strings(archive: zipfile.ZipFile) -> list[str]:
+    if "xl/sharedStrings.xml" not in archive.namelist():
+        return []
+
+    root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
+    strings: list[str] = []
+    for item in root.findall("m:si", XLSX_NS):
+        texts = [node.text or "" for node in item.findall(".//m:t", XLSX_NS)]
+        strings.append("".join(texts))
+    return strings
+
+
+def _workbook_target_to_archive_path(target: str) -> str:
+    normalized = target.replace("\\", "/").lstrip("/")
+    if normalized.startswith("xl/"):
+        return normalized
+    return f"xl/{normalized}"
+
+
+def _read_rows(worksheet: ET.Element, shared_strings: list[str]) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for row in worksheet.findall("m:sheetData/m:row", XLSX_NS):
+        values: list[str] = []
+        for cell in row.findall("m:c", XLSX_NS):
+            column_index = _cell_column_index(cell.attrib.get("r", ""))
+            if column_index is None:
+                values.append(_read_cell(cell, shared_strings))
+                continue
+            while len(values) <= column_index:
+                values.append("")
+            values[column_index] = _read_cell(cell, shared_strings)
+        if any(value.strip() for value in values):
+            rows.append(values)
+    return rows
+
+
+def _read_cell(cell: ET.Element, shared_strings: list[str]) -> str:
+    cell_type = cell.attrib.get("t")
+    if cell_type == "inlineStr":
+        return "".join(node.text or "" for node in cell.findall(".//m:t", XLSX_NS))
+
+    value_node = cell.find("m:v", XLSX_NS)
+    if value_node is None or value_node.text is None:
+        return ""
+
+    raw_value = value_node.text
+    if cell_type == "s":
+        try:
+            return shared_strings[int(raw_value)]
+        except (IndexError, ValueError):
+            return raw_value
+    return raw_value
+
+
+def _clean_cell(value: str) -> str:
+    return re.sub(r"\s+", " ", value.replace("\t", " ")).strip()
+
+
+def _normalize_header(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
+
+
+def _cell_column_index(cell_reference: str) -> int | None:
+    match = re.match(r"([A-Z]+)", cell_reference.upper())
+    if not match:
+        return None
+
+    index = 0
+    for character in match.group(1):
+        index = index * 26 + (ord(character) - ord("A") + 1)
+    return index - 1
+
+
 def load_text_documents(source_root: str, spark=None) -> list[TextDocument]:
     normalized_root = source_root.rstrip("/")
 
@@ -60,11 +213,16 @@ def load_text_documents(source_root: str, spark=None) -> list[TextDocument]:
         documents: list[TextDocument] = []
         for file_path in sorted(root.rglob("*")):
             if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
+                extension = file_path.suffix.lower()
+                if extension == ".xlsx":
+                    content = xlsx_bytes_to_text(file_path.read_bytes())
+                else:
+                    content = file_path.read_text(encoding="utf-8")
                 documents.append(
                     TextDocument(
                         path=str(file_path),
-                        content=file_path.read_text(encoding="utf-8"),
-                        extension=file_path.suffix.lower(),
+                        content=content,
+                        extension=extension,
                     )
                 )
         return documents
@@ -88,10 +246,12 @@ def _load_text_documents_with_spark(source_root: str, spark) -> list[TextDocumen
         extension = Path(row["path"]).suffix.lower()
         if extension not in SUPPORTED_EXTENSIONS:
             continue
+        content = bytes(row["content"])
+        text = xlsx_bytes_to_text(content) if extension == ".xlsx" else content.decode("utf-8")
         documents.append(
             TextDocument(
                 path=row["path"],
-                content=bytes(row["content"]).decode("utf-8"),
+                content=text,
                 extension=extension,
             )
         )
@@ -1042,6 +1202,136 @@ def parse_notebook_document(
         )
 
 
+def lakebridge_program_asset_id(program: str) -> str:
+    return stable_id("lakebridge_analyzer", "sql_program", program)
+
+
+def lakebridge_complexity_to_criticality(complexity: str) -> str | None:
+    normalized = complexity.strip().lower()
+    if normalized in {"very_high", "very high", "high"}:
+        return "high"
+    if normalized == "medium":
+        return "medium"
+    return None
+
+
+def lakebridge_operation_to_dependency_type(operation: str) -> str:
+    normalized = operation.strip().upper()
+    if normalized == "READ":
+        return "reads"
+    if normalized in {"WRITE", "CREATE", "DROP", "TRUNCATE"}:
+        return "writes"
+    return "references"
+
+
+def parse_lakebridge_analyzer_document(
+    document: TextDocument,
+    run_id: str,
+    discovered_at: str,
+    assets: dict[str, dict[str, Any]],
+    dependencies: list[dict[str, Any]],
+    dependency_keys: set[tuple[str, str, str]],
+) -> None:
+    sheets = parse_xlsx_text_sheets(document.content)
+    if "SQL Programs" not in sheets and "RAW_PROGRAM_OBJECT_XREF" not in sheets:
+        return
+
+    for row in rows_as_dicts(sheets.get("SQL Programs", [])):
+        program = row.get("source_file") or row.get("program_name")
+        if not program:
+            continue
+        program_name = row.get("program_name") or Path(program).name
+        complexity = row.get("complexity") or ""
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": lakebridge_program_asset_id(program),
+                "source_system": "lakebridge_analyzer",
+                "asset_type": "lakebridge_sql_program",
+                "asset_name": program_name,
+                "platform": "Databricks Labs",
+                "technology": "Lakebridge Analyzer SQL Program",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": lakebridge_complexity_to_criticality(complexity),
+                "row_count": None,
+                "metadata_json": sanitized_json(
+                    {
+                        "source_file": row.get("source_file"),
+                        "included": row.get("included"),
+                        "line_count": row.get("line_count"),
+                        "complexity": complexity,
+                        "statement_count": row.get("statement_count"),
+                        "script_category": row.get("script_category"),
+                        "categorization_metrics": row.get("categorization_metrics"),
+                    }
+                ),
+                "discovered_at": discovered_at,
+            },
+        )
+
+    for row in rows_as_dicts(sheets.get("RAW_PROGRAM_OBJECT_XREF", [])):
+        program = row.get("program")
+        object_name = row.get("object")
+        operation = row.get("operation") or "REFERENCE"
+        if not program or not object_name:
+            continue
+
+        program_id = lakebridge_program_asset_id(program)
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": program_id,
+                "source_system": "lakebridge_analyzer",
+                "asset_type": "lakebridge_sql_program",
+                "asset_name": Path(program).name,
+                "platform": "Databricks Labs",
+                "technology": "Lakebridge Analyzer SQL Program",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": None,
+                "row_count": None,
+                "metadata_json": sanitized_json({"source_file": program}),
+                "discovered_at": discovered_at,
+            },
+        )
+
+        object_id = stable_id("lakebridge_analyzer", "referenced_object", object_name)
+        add_asset(
+            assets,
+            {
+                "run_id": run_id,
+                "asset_id": object_id,
+                "source_system": "lakebridge_analyzer",
+                "asset_type": "lakebridge_referenced_object",
+                "asset_name": object_name,
+                "platform": "Legacy SQL",
+                "technology": "Lakebridge referenced SQL object",
+                "raw_path": document.path,
+                "owner": None,
+                "criticality": None,
+                "row_count": None,
+                "metadata_json": sanitized_json({"operation": operation, "count": row.get("count")}),
+                "discovered_at": discovered_at,
+            },
+        )
+        add_dependency(
+            dependencies,
+            dependency_keys,
+            {
+                "run_id": run_id,
+                "from_asset_id": program_id,
+                "to_asset_id": object_id,
+                "dependency_type": lakebridge_operation_to_dependency_type(operation),
+                "evidence": f"Lakebridge {operation} reference: {object_name}",
+                "confidence": 0.85,
+                "discovered_at": discovered_at,
+            },
+        )
+
+
 def parse_documents(
     documents: list[TextDocument],
     run_id: str,
@@ -1080,6 +1370,15 @@ def parse_documents(
             )
         elif document.extension == ".sql":
             parse_sql_document(document, run_id, discovered_at, assets, dependencies, dependency_keys)
+        elif document.extension == ".xlsx":
+            parse_lakebridge_analyzer_document(
+                document,
+                run_id,
+                discovered_at,
+                assets,
+                dependencies,
+                dependency_keys,
+            )
 
     return raw_rows, list(assets.values()), dependencies
 
@@ -1093,6 +1392,8 @@ def infer_source_system(document: TextDocument) -> str:
         return "azure_synapse"
     if document.extension == ".sql":
         return "legacy_sql"
+    if document.extension == ".xlsx":
+        return "lakebridge_analyzer"
     return "legacy"
 
 
@@ -1144,9 +1445,27 @@ def build_risk_register(
             score += 10
             factors.append("large data volume")
 
-        if asset["asset_type"] in {"adf_pipeline", "sql_script", "synapse_notebook", "sqlserver_stored_procedure"}:
+        if asset["asset_type"] in {
+            "adf_pipeline",
+            "lakebridge_sql_program",
+            "sql_script",
+            "synapse_notebook",
+            "sqlserver_stored_procedure",
+        }:
             score += 10
             factors.append("requires orchestration or code migration")
+        if asset["asset_type"] == "lakebridge_sql_program":
+            try:
+                metadata = json.loads(asset.get("metadata_json") or "{}")
+            except json.JSONDecodeError:
+                metadata = {}
+            complexity = str(metadata.get("complexity") or "").strip().lower()
+            if complexity in {"very_high", "very high", "high"}:
+                score += 15
+                factors.append("Lakebridge high complexity")
+            elif complexity == "medium":
+                score += 5
+                factors.append("Lakebridge medium complexity")
         if asset["asset_type"] in {"adf_linked_service", "adf_dataset"}:
             score += 10
             factors.append("connection and dataset mapping required")
@@ -1197,6 +1516,7 @@ def build_blueprint(
             "sqlserver_table",
             "sqlserver_view",
             "sql_referenced_object",
+            "lakebridge_referenced_object",
         }:
             target_pattern = "Unity Catalog Delta table"
             target_schema = "silver"
@@ -1271,6 +1591,13 @@ def build_blueprint(
                 "Refactor platform-specific T-SQL functions.",
                 "Validate dependencies against Unity Catalog objects.",
             ]
+        elif asset_type == "lakebridge_sql_program":
+            target_pattern = "Databricks SQL or PySpark transformation"
+            target_schema = "workflows"
+            notes = [
+                "Use Lakebridge complexity and object references to plan rewrite effort.",
+                "Run Lakebridge transpile for candidates, then review generated Databricks SQL manually.",
+            ]
         elif asset_type == "sqlserver_stored_procedure":
             target_pattern = "Databricks SQL, PySpark transformation or Lakeflow task"
             target_schema = "workflows"
@@ -1317,11 +1644,27 @@ def build_data_quality_plan(
             "sqlserver_table",
             "sqlserver_view",
             "sql_referenced_object",
+            "lakebridge_referenced_object",
         }:
             checks = [
                 ("row_count_reconciliation", "completeness", "error", "Compare source and Delta row counts."),
                 ("schema_compatibility", "schema", "error", "Validate column names and compatible data types."),
                 ("nullability_profile", "quality", "warning", "Profile null rates for business columns."),
+            ]
+        elif asset["asset_type"] == "lakebridge_sql_program":
+            checks = [
+                (
+                    "lakebridge_complexity_review",
+                    "code",
+                    "error",
+                    "Review Lakebridge complexity, functions and object references before conversion.",
+                ),
+                (
+                    "transpile_output_review",
+                    "code",
+                    "warning",
+                    "If Lakebridge transpile is used, validate generated Databricks SQL before execution.",
+                ),
             ]
         elif asset["asset_type"] == "synapse_serverless_database":
             checks = [

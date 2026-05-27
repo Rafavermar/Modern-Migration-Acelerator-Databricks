@@ -36,6 +36,24 @@ Windows:
 powershell -ExecutionPolicy Bypass -File .\scripts\check_sqlserver_fixture.ps1
 ```
 
+Inspect SQL Server objects and sample rows without installing SSMS:
+
+```bash
+bash scripts/query_sqlserver_fixture.sh
+```
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_sqlserver_fixture.ps1
+```
+
+Run an ad hoc query:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_sqlserver_fixture.ps1 -Query "SELECT TOP (10) * FROM mart.FactOrders"
+```
+
 This starts `mcr.microsoft.com/mssql/server:2022-latest`, creates the `LegacySales` database and seeds:
 
 - `dbo.CustomerOrders`
@@ -43,6 +61,23 @@ This starts `mcr.microsoft.com/mssql/server:2022-latest`, creates the `LegacySal
 - `mart.DimCustomer`
 - `mart.FactOrders`
 - `dbo.usp_build_fact_orders`
+
+## After reboot
+
+Docker uses the named volume `legacy-sqlserver-data`, so the database survives a normal laptop shutdown.
+
+Next day:
+
+1. Open Docker Desktop.
+2. Run the bootstrap script again if the container is stopped:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap_sqlserver.ps1
+```
+
+The seed script is idempotent: it creates missing objects, keeps existing demo rows and updates views/procedures with `CREATE OR ALTER`.
+
+The SQL Server fixture is only needed when you want to demo or regenerate SQL Server metadata. The Databricks Delta outputs already written by the accelerator do not require the container to be running.
 
 ## Export metadata
 
@@ -74,6 +109,8 @@ LEGACY_METADATA_SOURCE_ROOT=local_outputs/legacy_metadata
 
 SQL Server in Docker is a local fixture for repeatable development. Synapse serverless databases, external tables and notebooks are represented by files under `samples/legacy_metadata`; they are not executed inside the SQL Server container.
 
+The fixture proves metadata extraction. It is not a target-state recommendation. In a real estate, SQL Server can remain as the operational system of record, be queried through federation, feed Databricks through CDC or connectors, or be partially migrated when the workload is analytical.
+
 ## Real SQL Server source
 
 In a customer implementation, do not require Docker. Use the same metadata contract with a real source:
@@ -89,3 +126,10 @@ In a customer implementation, do not require Docker. Use the same metadata contr
 4. The accelerator reads that export with the rest of the ADF, Synapse, notebook and SQL artifacts.
 
 Direct SQL Server connectivity is useful for federation, validation or automated discovery, but export-only onboarding is the simplest first path.
+
+Use the assessment outputs to decide the target:
+
+- operational application tables usually stay in SQL Server or Azure SQL;
+- analytical marts and reporting outputs usually become Unity Catalog Delta tables;
+- live coexistence or reconciliation can use Lakehouse Federation;
+- repeatable production movement should use the customer's approved ingestion or CDC pattern.

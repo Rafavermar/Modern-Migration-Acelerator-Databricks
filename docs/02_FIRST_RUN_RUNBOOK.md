@@ -4,6 +4,18 @@ Use this runbook when the Full Trial Databricks workspace is ready.
 
 Do not run deployment commands against Databricks Free Edition.
 
+## What this run proves
+
+The run proves the migration assessment path:
+
+1. Metadata lands in Unity Catalog.
+2. Databricks jobs parse and normalize assets.
+3. Delta tables expose inventory, dependencies, risk, priority, blueprint and DQ plan.
+4. Neo4j, Vector Search, RAG and MLflow enrich those outputs.
+5. The migration team uses the gold outputs to plan execution.
+
+This run does not execute a full production migration. Production data movement and code rebuild are separate implementation steps driven by `gold.target_databricks_blueprint` and customer engineering standards.
+
 ## 1. Confirm local readiness
 
 ```powershell
@@ -142,6 +154,8 @@ Expected output:
 
 - `demo.target_migration_plan`
 
+This is a blueprint consumer demo. It proves that generated recommendations can be consumed by a downstream Databricks job. It does not move production source data or execute a real cutover.
+
 ## 8. Prepare semantic corpus
 
 ```bash
@@ -154,7 +168,173 @@ Expected output:
 
 This table contains sanitized chunks from source artifacts and generated accelerator outputs. It is the Delta source for Databricks Vector Search. The primary key is `chunk_id`; the text column is `chunk_text`.
 
-## 9. Publish to Neo4j
+## 9. Create Vector Search index
+
+Create the endpoint and Delta Sync index:
+
+```bash
+bash scripts/create_vector_search_dev.sh
+```
+
+PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\create_vector_search_dev.ps1
+```
+
+Default dev configuration:
+
+- endpoint: `mma-vector-search-dev`
+- endpoint type: `STANDARD`
+- source table: `migration_accelerator_dev.gold.semantic_legacy_documents`
+- index: `migration_accelerator_dev.gold.semantic_legacy_documents_vs`
+- primary key: `chunk_id`
+- embedding source column: `chunk_text`
+- embedding endpoint: `databricks-qwen3-embedding-0-6b`
+- index subtype: `HYBRID`
+- sync mode: `TRIGGERED`
+- ANN algorithm and distance: Databricks-managed HNSW with L2 distance
+- query mode: `HYBRID` by default
+
+Query the index:
+
+```bash
+bash scripts/query_vector_search_dev.sh "Which high risk legacy assets should be migrated first?"
+```
+
+PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk legacy assets should be migrated first?"
+```
+
+This step uses Databricks Vector Search and the embedding model endpoint, so it can consume trial credits. Use `TRIGGERED` sync for controlled dev cost.
+
+The script waits until the index reports `ready=true`, then triggers sync. A first index build can take several minutes because Databricks provisions endpoint and pipeline resources. A successful dev run should show `indexed_row_count` equal to the number of semantic chunks, currently `309` for the demo plus SQL Server export.
+
+Where to see it:
+
+- `Catalog` > `migration_accelerator_dev` > `gold` > `semantic_legacy_documents`: source Delta table.
+- `Catalog` search `semantic_legacy_documents_vs`: managed Vector Search index.
+- Vector index page > `Overview` > `Data Ingest`: sync status and `Sync now`.
+- CLI/API: `databricks --profile <profile> vector-search-endpoints get-endpoint mma-vector-search-dev`.
+
+It is normal that `mma-vector-search-dev` does not appear under `AI/ML > Serving`. Vector Search endpoints are not standard Model Serving endpoints. The embedding model endpoint is Databricks-managed and may appear under AI Gateway or foundation model areas depending on workspace UI and filters.
+
+Useful verification commands for screenshots:
+
+```powershell
+databricks --profile mma-fulltrial vector-search-endpoints get-endpoint mma-vector-search-dev
+databricks --profile mma-fulltrial vector-search-indexes get-index migration_accelerator_dev.gold.semantic_legacy_documents_vs
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk assets should be migrated first?"
+```
+
+Metric note: this managed index embeds rows and text queries with `databricks-qwen3-embedding-0-6b`. Databricks Vector Search uses HNSW with L2 distance for the ANN part of retrieval. If a customer later uses self-managed vectors or `query_vector`, the indexed vectors and query vectors must use the same model, dimensions and preprocessing.
+
+## 10. Run RAG-ready search utility
+
+After Vector Search returns useful results, build a local retrieval brief:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?"
+```
+
+Git Bash equivalent:
+
+```bash
+bash scripts/rag_search_dev.sh "Which order assets need the first migration review?"
+```
+
+Expected local outputs:
+
+- `local_outputs/rag/latest_search.json`: raw Vector Search rows and response.
+- `local_outputs/rag/latest_answer.md`: readable evidence brief for a migration reviewer.
+- `local_outputs/rag/latest_trace.json`: trace-shaped payload for later MLflow GenAI evaluation.
+
+Base retrieval mode is not an autonomous assistant. It retrieves evidence and builds a deterministic brief so the team can validate retrieval quality before using generated answers.
+
+How to interpret it:
+
+- The command does not simply sort all artifacts by risk.
+- It asks Vector Search for chunks relevant to the question.
+- Returned chunks may come from raw artifacts or generated gold outputs such as `asset_priority_matrix`, `risk_register`, `data_quality_plan` and `target_databricks_blueprint`.
+- The brief highlights `p1` or high-risk assets when those fields are present in the retrieved chunks.
+- Final migration decisions still come from reviewing the Delta tables and Neo4j graph.
+
+Optional MLflow starter logging:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_dev_env.ps1 -InstallGenAiDeps
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?" -LogMlflow
+```
+
+The MLflow run logs the query, retrieved chunk count and local artifacts to `MLFLOW_EXPERIMENT_NAME`. Generated-answer runs also log answer artifacts and manual trace spans. Scorer-based evaluation is the next hardening step.
+
+`setup_dev_env.ps1 -InstallGenAiDeps` only installs optional MLflow dependencies. `-LogMlflow` performs the same RAG/search query and then records the run and artifacts in Databricks MLflow.
+The script uses `MLFLOW_TRACKING_URI` if set; otherwise it uses `databricks://<DATABRICKS_PROFILE>`.
+
+Where to see it:
+
+- Without `-LogMlflow`: outputs are local files under `local_outputs/rag/`.
+- With `-LogMlflow`: open Databricks `Experiments`, then the experiment from `MLFLOW_EXPERIMENT_NAME`.
+- The command also prints direct `View run` and `View experiment` links; use those links for validation and screenshots.
+- Generated-answer runs add manual MLflow spans for retrieval and generation. Scorer-based GenAI evaluation runs are added in the next hardening step.
+
+If `Experiments` is empty after `-LogMlflow`, check the script output for `MLflow tracking URI`. It should be `databricks://mma-fulltrial` or the customer profile, not a local `mlruns` path.
+Also clear UI filters and search for `modern-migration-accelerator`.
+
+Optional LLM-grounded answer:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?" -GenerateAnswer -LogMlflow
+```
+
+What changes:
+
+- Retrieval stays the same: Vector Search returns evidence chunks.
+- The script sends the question and retrieved evidence to `DATABRICKS_LLM_ENDPOINT`.
+- Dev default is `databricks-gemma-3-12b`; override it in `.env` if the workspace uses another chat endpoint.
+- The generated answer is saved to `local_outputs/rag/latest_llm_answer.md`.
+- MLflow logs the generation JSON and generated answer artifact.
+- With `-LogMlflow`, MLflow manual traces are created for retrieval and LLM generation.
+
+Where to see the LLM endpoint:
+
+- Databricks `Serving` page shows Foundation Model API endpoints.
+- The run output prints `LLM endpoint: <name>`.
+- MLflow run artifacts show `latest_generation.json` and `latest_llm_answer.md`.
+
+Credit guardrails for Foundation Models:
+
+- `-GenerateAnswer` consumes Databricks trial credits because it calls a hosted chat model.
+- Use retrieval-only mode while tuning metadata, Vector Search and screenshots that do not require generated text.
+- Use generated-answer mode for final validation, demo capture and targeted examples.
+- Keep dev defaults unless needed: `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=1200`, `RAG_LLM_TEMPERATURE=0.0`.
+- Monitor `Manage Trial` and workspace usage if running many questions.
+
+Starter RAG evaluation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_eval_dev.ps1
+```
+
+What it does:
+
+- Reads `contracts/rag_eval_questions.json`.
+- Runs each question against Vector Search.
+- Scores whether expected terms/assets appear in the retrieved evidence and optional generated answer.
+- Writes `local_outputs/rag_eval/latest_eval.json` and `latest_eval.md`.
+- Returns success by default even when a case misses, so reviewers can inspect gaps without breaking a demo run. Add `-FailOnMiss` for stricter regression checks.
+
+Optional generated-answer evaluation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_eval_dev.ps1 -GenerateAnswer -LogMlflow
+```
+
+Use this sparingly in the trial workspace because it calls the Foundation Model endpoint once per eval case.
+
+## 11. Publish to Neo4j
 
 Check AuraDB connectivity:
 
@@ -200,7 +380,7 @@ RETURN path
 LIMIT 25;
 ```
 
-## 10. Move from sample metadata to customer metadata
+## 12. Move from sample metadata to customer metadata
 
 Create or select a governed landing volume:
 
@@ -238,6 +418,7 @@ bash scripts/deploy_dev.sh
 bash scripts/run_accelerator_dev.sh
 bash scripts/run_target_demo_dev.sh
 bash scripts/run_semantic_index_prep_dev.sh
+bash scripts/create_vector_search_dev.sh
 ```
 
 Then publish graph exploration from the same normalized model:
@@ -247,7 +428,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish_neo4j_graph.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\verify_neo4j_graph.ps1
 ```
 
-## 11. Known first-run fixes
+## 13. Known first-run fixes
 
 Issue: `OSError: [Errno 5] Input/output error` while reading files under `/Workspace/Users/.../.bundle/.../files/samples/legacy_metadata`.
 
@@ -273,7 +454,37 @@ Cause: serverless task startup can hit transient Workspace Files reads.
 
 Fix: the jobs execute runtime Python scripts from the Unity Catalog volume instead of `/Workspace/.../.bundle/.../files`.
 
-## 12. Decide next phase
+Issue: `ModuleNotFoundError: No module named 'modern_migration_accelerator'` from a Databricks serverless job.
+
+Cause: runtime scripts are executed from the Unity Catalog volume as standalone job entrypoints. They should not require the local editable Python package to be installed in the Databricks serverless environment.
+
+Fix: the serverless job entrypoints include the small XLSX helper logic they need at runtime, so the accelerator and semantic prep jobs remain self-contained. Shared package modules are still used by local tools and tests.
+
+Issue: `databricks vector-search-indexes query-index` returns an unmarshalling error even when the REST API returns `200 OK`.
+
+Cause: CLI wrapper issue in the current Databricks CLI build.
+
+Fix: query scripts use `databricks api post /api/2.0/vector-search/indexes/<index>/query` with the same request body.
+
+Issue: `databricks api post /api/...` returns `Not Found` from Git Bash on Windows.
+
+Cause: Git Bash path conversion rewrites `/api/...` as a Windows path.
+
+Fix: Vector Search Bash scripts export `MSYS_NO_PATHCONV=1` and `MSYS2_ARG_CONV_EXCL=*`.
+
+Issue: `UnicodeEncodeError` after `rag_search_dev.ps1 -LogMlflow` on Windows.
+
+Cause: MLflow prints a Unicode run URL marker that can fail in legacy PowerShell encodings.
+
+Fix: the RAG/search Python entrypoint configures stdout/stderr as UTF-8 before logging to MLflow.
+
+Issue: `PermissionError: [WinError 5] Acceso denegado` when a local Python utility invokes `databricks`.
+
+Cause: some locked-down Windows shells cannot execute the Databricks CLI app alias from Python subprocesses.
+
+Fix: install Databricks CLI normally, or set `DATABRICKS_CLI` in `.env` to the explicit `databricks.exe` path. The RAG utilities resolve that path before calling the CLI.
+
+## 14. Decide next phase
 
 After the first successful customer metadata run:
 

@@ -43,6 +43,9 @@ fi
 if [ "${INSTALL_GRAPH_DEPS:-0}" = "1" ]; then
   extras+=("graph")
 fi
+if [ "${INSTALL_GENAI_DEPS:-0}" = "1" ]; then
+  extras+=("genai")
+fi
 if [ "${#extras[@]}" -gt 0 ]; then
   joined="$(IFS=,; echo "${extras[*]}")"
   "$venv_python" -m pip install --no-build-isolation -e ".[$joined]"

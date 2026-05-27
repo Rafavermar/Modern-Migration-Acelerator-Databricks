@@ -174,6 +174,39 @@ class PipelineParsingTests(unittest.TestCase):
         self.assertIn("adf_trigger", {asset["asset_type"] for asset in assets})
         self.assertEqual(dependencies[0]["dependency_type"], "triggers")
 
+    def test_parses_lakebridge_analyzer_report(self) -> None:
+        document = TextDocument(
+            path="synapse/lakebridge/lakebridge-analyzer-results.xlsx",
+            extension=".xlsx",
+            content=(
+                "## Sheet: SQL Programs\n"
+                "Program Name\tSource File\tIncluded\tLine Count\tComplexity\tStatement Count\t"
+                "Procedure And Function Counts\tScript Category\tCategorization Metrics\n"
+                "clean.sql\t/repo/clean.sql\tYES\t81\tHIGH\t71\t0\tCREATE_VIEW\tmetrics\n"
+                "\n"
+                "## Sheet: RAW_PROGRAM_OBJECT_XREF\n"
+                "Program\tObject\tOperation\tCount\n"
+                "/repo/clean.sql\t[dbo].[Customer]\tREAD\t2\n"
+                "/repo/clean.sql\t[dbo].[FactSales]\tWRITE\t1\n"
+            ),
+        )
+
+        _, assets, dependencies = parse_documents([document], "test_run")
+        risks = build_risk_register(assets, dependencies, "test_run")
+        blueprint = build_blueprint(assets, "test_run", "migration_accelerator_dev")
+        asset_types = {asset["asset_type"] for asset in assets}
+        dependency_types = {dependency["dependency_type"] for dependency in dependencies}
+        program_risk = next(risk for risk in risks if risk["asset_type"] == "lakebridge_sql_program")
+        program_blueprint = next(
+            row for row in blueprint if row["legacy_asset_type"] == "lakebridge_sql_program"
+        )
+
+        self.assertIn("lakebridge_sql_program", asset_types)
+        self.assertIn("lakebridge_referenced_object", asset_types)
+        self.assertEqual(dependency_types, {"reads", "writes"})
+        self.assertEqual(program_risk["risk_level"], "high")
+        self.assertEqual(program_blueprint["target_pattern"], "Databricks SQL or PySpark transformation")
+
     def test_builds_human_readable_consumption_outputs(self) -> None:
         document = TextDocument(
             path="inventory.csv",

@@ -1,14 +1,31 @@
 # Modern Migration Accelerator for Databricks
 
+![Modern Migration Accelerator for Databricks](docs/assets/modern_migration_accelerator_cover.png)
+
 Plug-and-play migration assessment accelerator for Databricks modernization.
 
 The solution parses legacy metadata, normalizes assets, builds a dependency graph, generates migration risk outputs, produces Databricks target blueprints and writes Delta tables in Databricks.
+
+## What this product does
+
+This product accelerates migration assessment and planning. It answers: what exists, how assets depend on each other, what is risky, what should be reviewed first and what Databricks target pattern is recommended.
+
+It helps the migration execution team, but it is not a data movement engine, automatic ADF/Synapse code converter or production ingestion framework. After assessment, the customer implements the chosen target patterns with Databricks jobs, Lakeflow, connectors, external tables, federation, notebooks or customer-standard engineering delivery.
+
+## Fast start
+
+1. Configure `.env` with the Databricks profile, catalog and optional Neo4j values.
+2. Run `scripts/local_smoke_test.*` to validate the repo without cloud changes.
+3. Run `scripts/validate_bundle.sh`, `scripts/deploy_dev.sh` and `scripts/run_accelerator_dev.sh`.
+4. Review `gold.assessment_summary`, `gold.asset_priority_matrix`, `gold.graph_edges`, `gold.risk_register`, `gold.target_databricks_blueprint` and `gold.data_quality_plan`.
+5. Add Neo4j, Vector Search, RAG and MLflow after the Delta outputs are trusted.
+6. Move to customer mode by uploading exports to `/Volumes/<catalog>/landing/legacy_metadata/` and setting `LEGACY_METADATA_SOURCE_ROOT`.
 
 ## How it works
 
 1. Configure the repo once for a Databricks Full Trial or full workspace.
 2. Run with the included sample estate copied to a Unity Catalog volume to prove the platform path.
-3. Point `LEGACY_METADATA_SOURCE_ROOT` to customer exports from ADF, Synapse, SQL Server, notebooks, SQL scripts and documentation.
+3. Point `LEGACY_METADATA_SOURCE_ROOT` to customer exports from ADF, Synapse, SQL Server, notebooks, SQL scripts, Lakebridge reports and documentation.
 4. Run the bundle again to produce Delta outputs for assessment, graph exploration and migration planning.
 5. Publish the graph to Neo4j and prepare semantic chunks for Databricks Vector Search when the first Delta outputs are trusted.
 
@@ -23,7 +40,7 @@ Change only these inputs when moving from demo to a real customer estate:
 | Databricks workspace | `DATABRICKS_PROFILE=mma-fulltrial` | Customer CLI profile or approved service principal. |
 | Target catalog | `migration_accelerator_dev` | Customer Unity Catalog catalog. |
 | Metadata landing | `/Volumes/<catalog>/landing/legacy_metadata/demo` | `/Volumes/<catalog>/landing/legacy_metadata/` or an approved external volume. |
-| ADF and Synapse artifacts | `samples/legacy_metadata/` | Exported `.json`, `.csv`, `.sql` and `.ipynb` files under the landing folders. |
+| ADF and Synapse artifacts | `samples/legacy_metadata/` | Exported `.json`, `.csv`, `.sql`, `.ipynb` and optional Lakebridge `.xlsx` files under the landing folders. |
 | SQL Server | Docker fixture plus `local_outputs/legacy_metadata/sqlserver_inventory.csv` | Read-only metadata export saved under `sqlserver/inventory/`, or approved federation/connector access. |
 | Neo4j | Local `.env` AuraDB values | Customer AuraDB or Neo4j endpoint and secret strategy. |
 
@@ -32,6 +49,7 @@ Recommended customer landing folders:
 ```text
 /Volumes/<catalog>/landing/legacy_metadata/adf/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/inventory/
+/Volumes/<catalog>/landing/legacy_metadata/synapse/lakebridge/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/notebooks/
 /Volumes/<catalog>/landing/legacy_metadata/synapse/sql/
 /Volumes/<catalog>/landing/legacy_metadata/sqlserver/inventory/
@@ -56,12 +74,39 @@ Full solution technologies:
 - Databricks Workflows on serverless compute and Delta tables for the assessment backbone.
 - Neo4j AuraDB for graph exploration and impact analysis.
 - Databricks Vector Search.
-- RAG over legacy artifacts and generated blueprints.
-- MLflow Tracking or MLflow Tracing.
+- RAG/search over legacy artifacts and generated blueprints.
+- MLflow Tracking and starter tracing for retrieval and generated answers.
 - Databricks Model Serving.
 - Enterprise CI/CD integration through the customer standard toolchain.
 
-The first deploy validates the Databricks assessment backbone. Neo4j, Vector Search and MLflow are activated as soon as the Full Trial workspace and AuraDB credentials are available.
+The first deploy validates the Databricks assessment backbone. Neo4j, Vector Search, RAG and MLflow then build on the same governed outputs.
+
+## From assessment to migration
+
+The accelerator does not copy production data by default. It creates the decision layer that tells the team how to migrate.
+
+Typical execution path after review:
+
+1. Use `gold.asset_priority_matrix` to select the first migration wave.
+2. Use `gold.graph_edges` and Neo4j to check upstream/downstream blast radius.
+3. Use `gold.target_databricks_blueprint` to choose the target pattern per asset.
+4. Use `gold.data_quality_plan` to define validation checks before and after migration.
+5. Implement the selected pattern: managed Delta ingestion, Unity Catalog external table, Unity Catalog volume, Lakehouse Federation, or a source-specific connector.
+6. Re-run the accelerator after each metadata refresh to keep the migration backlog current.
+
+## ROI and cost model
+
+The product reduces discovery, dependency analysis and migration planning effort. It does not remove the engineering work needed to build the approved target implementation.
+
+New assessment costs are usually limited to Databricks job compute, Databricks Vector Search when semantic search is enabled, optional Foundation Model calls for generated RAG answers, optional Neo4j AuraDB for graph exploration and small metadata storage. Existing ADF, Synapse, SQL Server and data lake costs normally remain outside the product cost model unless live federation or connector-based ingestion is activated.
+
+Price with current vendor calculators before each customer run. Use retrieval-only RAG while tuning metadata and reserve Foundation Model generation for final reviews, screenshots and demos.
+
+## SQL Server boundary
+
+SQL Server is not automatically replaced by Databricks. Operational OLTP systems normally remain in SQL Server, Azure SQL or SQL Managed Instance and feed Databricks through export-only metadata, federation, CDC or approved connectors.
+
+Migrate SQL Server assets into Databricks when they are analytical tables, reporting marts, batch ETL outputs, historical datasets or SQL logic used for BI and lakehouse workloads. The usual target is Unity Catalog Delta tables, Databricks SQL views, Lakeflow jobs, notebooks or PySpark/SQL transformations. Decommission a SQL Server object only after ownership, validation and cutover are approved.
 
 ## Outputs
 
@@ -220,6 +265,18 @@ On Windows PowerShell:
 powershell -ExecutionPolicy Bypass -File .\scripts\check_sqlserver_fixture.ps1
 ```
 
+Inspect objects and sample rows without SSMS:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_sqlserver_fixture.ps1
+```
+
+Run an ad hoc query:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\query_sqlserver_fixture.ps1 -Query "SELECT TOP (10) * FROM mart.FactOrders"
+```
+
 Export inventory metadata:
 
 ```bash
@@ -241,6 +298,8 @@ local_outputs/legacy_metadata/sqlserver_inventory.csv
 More detail is in `docs/04_LOCAL_SQLSERVER_FIXTURE.md`.
 
 The SQL Server container is a developer fixture. In a real customer implementation, SQL Server metadata should usually be exported with approved read-only catalog queries and delivered to the metadata landing area.
+
+If the laptop is shut down, open Docker Desktop and rerun `scripts/bootstrap_sqlserver.*` next time. The database persists in the Docker volume; the fixture is only needed when you want to inspect or regenerate SQL Server metadata.
 
 ## Full Databricks trial timing
 
@@ -286,7 +345,7 @@ For customer metadata, upload files to a Unity Catalog volume and set:
 LEGACY_METADATA_SOURCE_ROOT=/Volumes/migration_accelerator_dev/landing/legacy_metadata
 ```
 
-Supported file types are `.json` for ADF-like exports, `.csv` for Synapse or SQL Server inventory extracts, `.ipynb` for notebooks and `.sql` for SQL scripts.
+Supported file types are `.json` for ADF-like exports, `.csv` for Synapse or SQL Server inventory extracts, `.ipynb` for notebooks, `.sql` for SQL scripts and `.xlsx` for Databricks Lakebridge Analyzer reports.
 
 ## Neo4j timing
 
@@ -356,6 +415,8 @@ The target demo writes:
 
 - `demo.target_migration_plan`
 
+This proves the blueprint can feed a downstream Databricks job. It is not production data movement.
+
 Prepare the semantic corpus for Vector Search:
 
 ```bash
@@ -363,6 +424,76 @@ bash scripts/run_semantic_index_prep_dev.sh
 ```
 
 This writes `gold.semantic_legacy_documents` with primary key `chunk_id` and text column `chunk_text`. The table has Delta Change Data Feed enabled so it can become the source for a Vector Search Delta Sync index.
+
+Create and query the Vector Search endpoint and Delta Sync index:
+
+```bash
+bash scripts/create_vector_search_dev.sh
+bash scripts/query_vector_search_dev.sh "Which high risk assets should be migrated first?"
+```
+
+PowerShell equivalent:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\create_vector_search_dev.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\query_vector_search_dev.ps1 -Query "Which high risk assets should be migrated first?"
+```
+
+Default dev settings:
+
+- endpoint: `mma-vector-search-dev`
+- endpoint type: `STANDARD`
+- source table: `migration_accelerator_dev.gold.semantic_legacy_documents`
+- index: `migration_accelerator_dev.gold.semantic_legacy_documents_vs`
+- primary key: `chunk_id`
+- embedding source column: `chunk_text`
+- embedding endpoint: `databricks-qwen3-embedding-0-6b`
+- sync mode: `TRIGGERED`
+
+The query scripts call the Vector Search REST endpoint through `databricks api post` because the current CLI wrapper can print an unmarshalling error even when the API returns valid results.
+
+In the Databricks UI, inspect the Vector Search index through `Catalog`, not `AI/ML > Serving`. Search for `semantic_legacy_documents_vs` or browse `migration_accelerator_dev.gold`. The Vector Search endpoint is managed separately from standard Model Serving endpoints.
+
+Build a RAG-ready retrieval brief:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?"
+```
+
+This writes:
+
+- `local_outputs/rag/latest_search.json`
+- `local_outputs/rag/latest_answer.md`
+- `local_outputs/rag/latest_trace.json`
+
+The starter utility does retrieval and grounded summarization only. Add `-LogMlflow` after installing `pip install -e .[genai]` to log the run artifacts to the configured MLflow experiment.
+
+RAG/search itself is not a Databricks UI object yet. Vector Search is visible in `Catalog`; MLflow artifacts are visible in `Experiments` only when `-LogMlflow` is used.
+By default `-LogMlflow` writes to `databricks://<DATABRICKS_PROFILE>`. Override with `MLFLOW_TRACKING_URI` only when the customer uses a different tracking target.
+
+Generate an LLM-grounded answer after retrieval:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_search_dev.ps1 -Question "Which order assets need the first migration review?" -GenerateAnswer -LogMlflow
+```
+
+Default dev LLM endpoint:
+
+- `DATABRICKS_LLM_ENDPOINT=databricks-gemma-3-12b`
+
+This calls a Databricks Foundation Model API chat endpoint, writes `local_outputs/rag/latest_llm_answer.md` and logs the generation artifacts to MLflow when `-LogMlflow` is used.
+
+Foundation Model calls consume Databricks trial credits. Use retrieval-only mode while tuning metadata and index quality; use `-GenerateAnswer` for final checks, screenshots and demos. Dev defaults are demo-friendly but controlled: `databricks-gemma-3-12b`, `RAG_LLM_MAX_TOKENS=1200`, `RAG_LLM_TEMPERATURE=0.0`.
+
+Run the starter RAG evaluation set:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\rag_eval_dev.ps1
+```
+
+This reads `contracts/rag_eval_questions.json`, runs a few retrieval-only questions and writes `local_outputs/rag_eval/latest_eval.md`. Add `-GenerateAnswer` only when you intentionally want to evaluate generated answers and consume Foundation Model credits.
+
+Risk and review priority are calculated by the accelerator from metadata such as asset type, dependencies, row counts and criticality. Customers improve scoring by providing richer metadata exports; they do not need to manually tag every artifact before the first run.
 
 On Windows, Databricks bundle scripts are Bash-first because the package includes `scripts/*.sh`. Use Git Bash or WSL for those scripts, or run equivalent `databricks bundle ...` commands directly from PowerShell after the Full Trial CLI profile is configured.
 
@@ -377,6 +508,12 @@ Optional future files:
 
 Do not create those files unless explicitly requested.
 
+## Packaging recommendation
+
+Use this as a GitHub repository template or tagged release. The Databricks Asset Bundle is the deployable unit; `.env.example`, contracts, scripts and sample metadata are the onboarding layer.
+
+For a customer, create a private fork or configuration overlay, set customer-specific bundle variables and secrets, then deploy the same bundle. Keep customer artifacts and credentials out of the public product repo.
+
 ## Documentation
 
 Read these in order:
@@ -389,5 +526,6 @@ Read these in order:
 - `docs/03_METADATA_FRAMEWORK.md`
 - `docs/04_LOCAL_SQLSERVER_FIXTURE.md`
 - `docs/05_ADVANCED_CAPABILITIES.md`
+- `CHANGELOG.md`
 
 Vector Search, embeddings, RAG, MLflow tracking, GenAI tracing and model or agent evaluation are full-solution layers that build on the trusted Databricks assessment outputs.
