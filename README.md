@@ -1,7 +1,5 @@
 # Modern Migration Accelerator for Databricks
 
-![Modern Migration Accelerator architecture cover](docs/assets/modern_migration_accelerator_cover.png)
-
 Plug-and-play migration assessment accelerator for Databricks modernization.
 
 The solution parses legacy metadata, normalizes assets, builds a dependency graph, generates migration risk outputs, produces Databricks target blueprints and writes Delta tables in Databricks.
