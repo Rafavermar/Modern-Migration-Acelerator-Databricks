@@ -6,9 +6,9 @@ Plug-and-play migration assessment accelerator for Databricks modernization.
 
 The solution parses legacy metadata, normalizes assets, builds a dependency graph, generates migration risk outputs, produces Databricks target blueprints and writes Delta tables in Databricks.
 
-## What this product does
+## What this project does
 
-This product accelerates migration assessment and planning. It answers: what exists, how assets depend on each other, what is risky, what should be reviewed first and what Databricks target pattern is recommended.
+This open-source project accelerates migration assessment and planning. It answers: what exists, how assets depend on each other, what is risky, what should be reviewed first and what Databricks target pattern is recommended.
 
 It helps the migration execution team, but it is not a data movement engine, automatic ADF/Synapse code converter or production ingestion framework. After assessment, the customer implements the chosen target patterns with Databricks jobs, Lakeflow, connectors, external tables, federation, notebooks or customer-standard engineering delivery.
 
@@ -99,6 +99,10 @@ Typical execution path after review:
 The product reduces discovery, dependency analysis and migration planning effort. It does not remove the engineering work needed to build the approved target implementation.
 
 New assessment costs are usually limited to Databricks job compute, Databricks Vector Search when semantic search is enabled, optional Foundation Model calls for generated RAG answers, optional Neo4j AuraDB for graph exploration and small metadata storage. Existing ADF, Synapse, SQL Server and data lake costs normally remain outside the product cost model unless live federation or connector-based ingestion is activated.
+
+## License
+
+Licensed under the MIT License. See `LICENSE`.
 
 Price with current vendor calculators before each customer run. Use retrieval-only RAG while tuning metadata and reserve Foundation Model generation for final reviews, screenshots and demos.
 
